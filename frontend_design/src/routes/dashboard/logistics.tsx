@@ -4,13 +4,16 @@ import { useState } from "react";
 import { PageTitle } from "../../components/PageTitle";
 import { jobs } from "../../components/views/BrowseView";
 import { MiniStat } from "../../components/views/BrowseView";
+import { useAuthGuard } from "../../lib/auth";
 
 export const Route = createFileRoute("/dashboard/logistics")({
   component: LogisticsDashboard,
 });
 
 function LogisticsDashboard() {
+  useAuthGuard();
   const [jobState, setJobState] = useState<Record<string, string>>({});
+
   
   const update = (id: string, current: string) => {
     setJobState({ 

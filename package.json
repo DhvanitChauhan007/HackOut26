@@ -1,0 +1,16 @@
+{
+  "name": "hackout26",
+  "version": "1.0.0",
+  "description": "HackOut26 - Circular Packaging Exchange (monorepo root)",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix frontend_design",
+    "build": "npm run build --prefix frontend_design",
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend_design",
+    "start:backend": "npm run start --prefix backend",
+    "start:frontend": "npm run start --prefix frontend_design"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

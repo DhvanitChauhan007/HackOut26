@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowRight, Box, Check, MapPin, Recycle, RouteIcon, Search, Sparkles, Star } from "lucide-react";
+import { ArrowRight, Box, Check, MapPin, Recycle, RouteIcon, Search, Sparkles, Star, X } from "lucide-react";
 import blueDrumsImage from "@/assets/blue-drums.jpg";
 import cardboardBalesImage from "@/assets/cardboard-bales.jpg";
 import filmBalesImage from "@/assets/film-bales.jpg";
