@@ -1,0 +1,12 @@
+# Backend Changes Log - 2026-09-12
+
+## 1. `src/routes/transactions.js`
+- **POST `/api/transactions/:id/estimate`**: Fixed a bug where bulk transactions would return a 404 due to a null `listing_id`. The endpoint now correctly fetches all `bulk_lot_items` and iterates over them to compute a multi-stop routing distance (summing the `distance_km` for each leg in insertion order, from pickup 1 to pickup N, and finally to the buyer's dropoff).
+- **POST `/api/transactions/:id/commit`**: Fixed a similar 404 issue. The code now iterates over the fetched `bulk_lot_items` to dynamically insert multiple `job_stops` rows, preserving the insertion order (`seq_order`). Additionally, for bulk transactions, it assigns the first item's `pickup_lat` and `pickup_long` to the main `jobs` row to ensure the logistics dashboard can still perform proximity-based sorting cleanly.
+
+## 2. `src/routes/jobs.js`
+- **POST `/api/jobs/:id/deliver`**: Fixed the notification dispatch logic for completed jobs. Previously, it only notified `transaction.seller_id`, which is null for bulk transactions. It now dynamically checks `bulk_lot_items` to gather all contributing sellers' IDs, ensuring everyone gets a push notification that their materials were successfully delivered.
+
+## 3. `src/routes/impact.js`
+- **GET `/api/impact/summary`**: Fixed the query that drives the user impact dashboard. It now correctly detects if a user is a contributing seller in a completed bulk transaction (via `bulk_lot_items`). Instead of awarding them 0 impact metrics (or 100% of the entire lot's impact), it safely apportions `impact_kg_diverted` and `impact_co2e_kg` relative to their contributed `quantity` vs the `total_quantity` of the lot.
+- **Cost Savings Bug**: Fixed a schema reference error where the impact calculator was trying to read `txn.price` (which doesn't exist). It now fetches the original `list_price` from the joined `listings` table for single-seller transactions, and computes `bulk_rate_per_kg * userQty` for bulk sellers.
