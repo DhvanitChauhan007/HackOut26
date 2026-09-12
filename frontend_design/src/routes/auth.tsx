@@ -13,6 +13,12 @@ export const Route = createFileRoute("/auth")({
 
 type Tab = "signin" | "signup" | "forgot";
 
+// Roles that are treated as sellers and get routed to the seller portal
+const SELLER_ROLES = ["manufacturer", "retailer"];
+function sellerRedirect(role: string | undefined, fallback: string) {
+  return role && SELLER_ROLES.includes(role) ? "/seller" : fallback;
+}
+
 
 
 const INPUT =
@@ -57,7 +63,8 @@ function AuthPage() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && event === "SIGNED_IN") {
-        navigate({ to: next as "/marketplace" });
+        const role = session.user.user_metadata?.["role"] as string | undefined;
+        navigate({ to: sellerRedirect(role, next) as "/seller" });
       }
     });
     return () => subscription.unsubscribe();
@@ -72,9 +79,10 @@ function AuthPage() {
     setLoading(true);
     resetMessages();
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      navigate({ to: next as "/marketplace" });
+      const role = data.session?.user?.user_metadata?.["role"] as string | undefined;
+      navigate({ to: sellerRedirect(role, next) as "/seller" });
     } catch (err: unknown) {
       setMessage({ text: (err as Error).message, type: "error" });
     } finally {
@@ -112,19 +120,24 @@ function AuthPage() {
 
       // Create profile via API if session exists immediately (no email confirm required)
       if (data.session) {
-        const profileRes = await fetch("/api/users/me", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${data.session.access_token}`,
-          },
-          body: JSON.stringify({ name, role, address }),
-        });
-        if (!profileRes.ok) {
-          const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
-          console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
+        try {
+          const profileRes = await fetch("/api/users/me", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            body: JSON.stringify({ name, role, address }),
+          });
+          if (!profileRes.ok) {
+            const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
+            console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
+          }
+        } catch (profileFetchErr) {
+          // Network-level error (e.g. server not yet running in dev) — don't block the user
+          console.warn("Note: Could not reach profile API, proceeding to UI.", profileFetchErr);
         }
-        navigate({ to: next as "/marketplace" });
+        navigate({ to: sellerRedirect(role, next) as "/seller" });
       } else {
         setMessage({ text: "Check your email to confirm your account.", type: "success" });
       }

@@ -17,6 +17,7 @@ import { Route as DashboardSellerRouteImport } from './routes/dashboard/seller'
 import { Route as ImpactIndexRouteImport } from './routes/impact/index'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace/index'
 import { Route as MarketplaceBulkLotsRouteImport } from './routes/marketplace/bulk-lots'
+import { Route as SellerIndexRouteImport } from './routes/seller/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const MarketplaceBulkLotsRoute = MarketplaceBulkLotsRouteImport.update({
   path: '/marketplace/bulk-lots',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SellerIndexRoute = SellerIndexRouteImport.update({
+  id: '/seller/',
+  path: '/seller/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact/': typeof ImpactIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
+  '/seller/': typeof SellerIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact': typeof ImpactIndexRoute
   '/marketplace': typeof MarketplaceIndexRoute
+  '/seller': typeof SellerIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact/': typeof ImpactIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
+  '/seller/': typeof SellerIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/marketplace/bulk-lots'
     | '/impact/'
     | '/marketplace/'
+    | '/seller/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/marketplace/bulk-lots'
     | '/impact'
     | '/marketplace'
+    | '/seller'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/marketplace/bulk-lots'
     | '/impact/'
     | '/marketplace/'
+    | '/seller/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   MarketplaceBulkLotsRoute: typeof MarketplaceBulkLotsRoute
   ImpactIndexRoute: typeof ImpactIndexRoute
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
+  SellerIndexRoute: typeof SellerIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceBulkLotsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/seller/': {
+      id: '/seller/'
+      path: '/seller'
+      fullPath: '/seller/'
+      preLoaderRoute: typeof SellerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceBulkLotsRoute: MarketplaceBulkLotsRoute,
   ImpactIndexRoute: ImpactIndexRoute,
   MarketplaceIndexRoute: MarketplaceIndexRoute,
+  SellerIndexRoute: SellerIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
