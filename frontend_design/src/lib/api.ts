@@ -48,6 +48,7 @@ export const updateListing = (id: string, data: any) => fetchWithAuth(`/listings
 
 // Requests
 export const requestListing = (id: string) => fetchWithAuth(`/listings/\${id}/requests`, { method: "POST" });
+export const getListingRequests = (id: string) => fetchWithAuth(`/listings/\${id}/requests`);
 export const updateRequest = (id: string, status: "accepted" | "declined") => fetchWithAuth(`/requests/\${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
 
 // Transactions

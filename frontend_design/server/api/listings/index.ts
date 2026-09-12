@@ -9,7 +9,7 @@ import { checkBatchEligibility } from "@/services/bulkBatching";
 
 const LISTING_FIELDS = [
   "material_type", "sub_grade", "contamination_pct", "quantity", "unit",
-  "condition", "photo_url", "list_price", "price_floor", "pickup_lat", "pickup_long",
+  "condition", "photo_url", "list_price", "price_floor", "pickup_lat", "pickup_long", "pickup_address",
 ] as const;
 
 const SELLER_ROLES = ["manufacturer", "retailer"];
@@ -101,6 +101,13 @@ export default defineEventHandler(async (event) => {
     payload["seller_id"] = user.id;
     payload["decay_window_seconds"] = config.DECAY_WINDOW_SECONDS;
     payload["status"] = "open";
+
+    // pickup_address is not a database column; embed it in condition to prevent schema error
+    if (payload["pickup_address"]) {
+      const addr = payload["pickup_address"];
+      payload["condition"] = payload["condition"] ? `${payload["condition"]} | Pickup: ${addr}` : `Pickup: ${addr}`;
+      delete payload["pickup_address"];
+    }
 
     const { data, error } = await supabaseAdmin.from("listings").insert(payload).select().single();
 

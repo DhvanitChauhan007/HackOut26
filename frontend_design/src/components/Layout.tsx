@@ -4,7 +4,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { supabase } from "../lib/supabase";
 
-const HIDE_NAV_ROUTES = ["/auth", "/"];
+const HIDE_NAV_ROUTES = ["/auth", "/", "/seller", "/seller/"];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [noticeOpen, setNoticeOpen] = useState(false);

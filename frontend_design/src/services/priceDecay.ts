@@ -41,3 +41,32 @@ export function isAtFloorForTimeout(listing: ListingForDecay, timeoutSeconds: nu
 export function isBatchEligible(listing: ListingForDecay, batchEligibleDecayPct: number): boolean {
   return decayFraction(listing) >= batchEligibleDecayPct;
 }
+
+/** Format seconds into human readable hours and minutes */
+export function formatTimeRemaining(seconds: number): string {
+  if (seconds <= 0) return "Threshold reached";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${Math.max(1, minutes)}m`;
+}
+
+/** Computes dynamic fallback thresholds (80% bulk batching and floor recycler fallback) for a listing */
+export function getFallbackTiming(listing: ListingForDecay, batchThreshold = 0.8) {
+  const { decay_window_seconds, created_at } = listing;
+  const elapsedSeconds = Math.max(0, (Date.now() - new Date(created_at).getTime()) / 1000);
+  const secondsTo80 = Math.max(0, decay_window_seconds * batchThreshold - elapsedSeconds);
+  const secondsToFloor = Math.max(0, decay_window_seconds - elapsedSeconds);
+
+  return {
+    elapsedSeconds,
+    secondsTo80,
+    secondsToFloor,
+    timeTo80Formatted: formatTimeRemaining(secondsTo80),
+    timeToFloorFormatted: formatTimeRemaining(secondsToFloor),
+    is80Reached: elapsedSeconds >= decay_window_seconds * batchThreshold,
+    isFloorReached: elapsedSeconds >= decay_window_seconds,
+  };
+}

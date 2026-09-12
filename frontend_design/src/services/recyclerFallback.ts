@@ -57,6 +57,7 @@ export async function acceptRequest(
   const finalPrice = computeCurrentPrice(listing);
 
   // 5. Create a transaction row
+  const qtyKg = Number(listing["quantity"]) || 1000;
   const { data: transaction, error: txError } = await supabaseAdmin
     .from("transactions")
     .insert({
@@ -66,6 +67,8 @@ export async function acceptRequest(
       buyer_id: (acceptedRequest as { buyer_id: string }).buyer_id,
       estimated_cost: finalPrice,
       status: "pending",
+      impact_kg_diverted: qtyKg,
+      impact_co2e_kg: Math.round(qtyKg * 3.12 * 10) / 10,
     })
     .select()
     .single();
