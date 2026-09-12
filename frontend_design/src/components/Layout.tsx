@@ -30,11 +30,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
 
             <nav className="hidden items-center rounded-xl border-2 border-foreground/10 bg-card p-1 text-sm font-semibold md:flex" aria-label="Dashboard navigation">
-              <Link to="/marketplace" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Marketplace</Link>
+              <Link to="/marketplace" activeOptions={{ exact: true }} className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Marketplace</Link>
               <Link to="/marketplace/bulk-lots" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Bulk lots</Link>
-              <Link to="/dashboard/seller" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Seller Hub</Link>
-              <Link to="/dashboard/buyer" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Buyer Hub</Link>
-              <Link to="/dashboard/logistics" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Logistics</Link>
+              <Link to="/dashboard/buyer" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Requests</Link>
               <Link to="/impact" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Impact</Link>
             </nav>
 
@@ -71,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Link to="/marketplace" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Marketplace</Link>
                 <Link to="/marketplace/bulk-lots" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Bulk lots</Link>
                 <Link to="/dashboard/seller" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Seller Hub</Link>
-                <Link to="/dashboard/buyer" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Buyer Hub</Link>
+                <Link to="/dashboard/buyer" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Requests</Link>
                 <Link to="/dashboard/logistics" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Logistics</Link>
                 <Link to="/impact" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Impact</Link>
               </div>
