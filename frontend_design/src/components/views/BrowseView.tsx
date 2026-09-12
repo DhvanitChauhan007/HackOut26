@@ -16,17 +16,36 @@ export function BrowseView() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadListings = () => {
-    fetch('/api/listings')
-      .then(res => res.json())
-      .then(data => {
-        setListings(data || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to fetch listings", err);
-        setLoading(false);
-      });
+  const loadListings = async () => {
+    try {
+      const res = await fetch('/api/listings');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setListings(data);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Backend proxy not responding, falling back to direct Supabase query:", err);
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*, users(name, address, lat, long)')
+        .eq('status', 'open')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setListings(data);
+      }
+    } catch (sbErr) {
+      console.error("Direct Supabase query failed:", sbErr);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -63,10 +82,18 @@ export function BrowseView() {
   const [selected, setSelected] = useState<Listing | null>(null);
   const [requested, setRequested] = useState<string[]>([]);
 
-  const filtered = useMemo(
-    () => listings.filter((item) => (material === "All" || item.material_type === material)),
-    [material, distance, listings],
-  );
+  const filtered = useMemo(() => {
+    return listings.filter((item) => {
+      if (material === "All") return true;
+      const m1 = (item.material_type || "").toLowerCase().trim();
+      const m2 = material.toLowerCase().trim();
+      if (m1 === m2) return true;
+      if (m2 === "plastic" && (m1.includes("pet") || m1.includes("hdpe") || m1.includes("ldpe") || m1.includes("film") || m1.includes("plastic"))) return true;
+      if (m2 === "cardboard" && (m1.includes("cardboard") || m1.includes("occ") || m1.includes("paper") || m1.includes("duplex"))) return true;
+      if (m2 === "pallets" && (m1.includes("pallet") || m1.includes("wood") || m1.includes("timber"))) return true;
+      return false;
+    });
+  }, [material, listings]);
 
   const requestLot = async (id: string) => {
     try {

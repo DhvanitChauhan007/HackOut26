@@ -219,8 +219,9 @@ router.get('/impact/summary', requireAuth, async (req, res) => {
 router.get('/transactions', requireAuth, async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('transactions')
-    .select('*, listings(*)')
-    .eq('buyer_id', req.user.id);
+    .select('*, listings(*, users(name, address)), seller:seller_id(name, address), jobs(*, users:logistics_company_id(name))')
+    .eq('buyer_id', req.user.id)
+    .order('created_at', { ascending: false });
   if (error) return res.status(400).json({ error: error.message });
   res.json(data);
 });
@@ -229,8 +230,9 @@ router.get('/transactions', requireAuth, async (req, res) => {
 router.get('/requests', requireAuth, async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('requests')
-    .select('*, listings(*)')
-    .eq('buyer_id', req.user.id);
+    .select('*, listings(*, users(name, address))')
+    .eq('buyer_id', req.user.id)
+    .order('created_at', { ascending: false });
   if (error) return res.status(400).json({ error: error.message });
   res.json(data);
 });

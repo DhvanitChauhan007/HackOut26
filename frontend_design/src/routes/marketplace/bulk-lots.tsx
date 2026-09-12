@@ -1,9 +1,10 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Box, Recycle, Users, X } from "lucide-react";
 import { PageTitle } from "../../components/PageTitle";
 import { MiniStat } from "../../components/views/BrowseView";
 import { useState, useEffect } from "react";
 import { apiRequest } from "../../lib/apiClient";
+import { supabase } from "../../lib/supabase";
 
 export const Route = createFileRoute("/marketplace/bulk-lots")({
   component: BulkLotsPage,
@@ -16,10 +17,37 @@ function BulkLotsPage() {
   const [contributors, setContributors] = useState<any[] | null>(null);
 
   useEffect(() => {
-    fetch("/api/bulk-lots")
-      .then((res) => res.json())
-      .then((data) => { setLots(data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+    async function loadLots() {
+      try {
+        const res = await fetch("/api/bulk-lots");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setLots(data);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Backend /api/bulk-lots fetch failed, trying direct Supabase fallback:", e);
+      }
+
+      // Direct Supabase fallback
+      try {
+        const { data, error } = await supabase
+          .from("bulk_lots")
+          .select("*, bulk_lot_items(*, users(name), listings(sub_grade, material_type))")
+          .eq("status", "open");
+        if (!error && data) {
+          setLots(data);
+        }
+      } catch (err) {
+        console.error("Direct Supabase bulk_lots query failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadLots();
   }, []);
 
   const handlePurchase = async (lot: any) => {
