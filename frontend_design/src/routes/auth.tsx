@@ -96,11 +96,23 @@ function AuthPage() {
         password,
         options: { data: { name, role, address } },
       });
-      if (error) throw error;
+
+      if (error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes("already registered") || msg.includes("user already exists") || (msg.includes("email") && msg.includes("taken"))) {
+          throw new Error("An account with this email already exists. Try signing in instead.");
+        }
+        throw error;
+      }
+
+      // Supabase returns a user but empty identities[] when the email is already taken
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        throw new Error("An account with this email already exists. Try signing in instead.");
+      }
 
       // Create profile via API if session exists immediately (no email confirm required)
       if (data.session) {
-        await fetch("/api/users/me", {
+        const profileRes = await fetch("/api/users/me", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -108,6 +120,10 @@ function AuthPage() {
           },
           body: JSON.stringify({ name, role, address }),
         });
+        if (!profileRes.ok) {
+          const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
+          console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
+        }
         navigate({ to: next as "/marketplace" });
       } else {
         setMessage({ text: "Check your email to confirm your account.", type: "success" });
