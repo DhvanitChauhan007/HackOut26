@@ -2,6 +2,7 @@ import { supabaseAdmin } from "../api/supabase";
 import { config } from "../api/config";
 import { isAtFloorForTimeout, computeCurrentPrice } from "./priceDecay";
 import { createNotification } from "./notifications";
+import { getDistance } from "./distanceMatrix";
 
 export interface Listing {
   id: string;
@@ -71,6 +72,91 @@ export async function acceptRequest(
     .single();
 
   if (txError) throw new Error(`Failed to create transaction: ${txError.message}`);
+
+  // ─── Auto-estimate + auto-commit ────────────────────────────────────────────
+  // Chain the estimate → commit steps automatically so a job appears on the
+  // logistics dashboard the instant the seller approves. Both steps are
+  // best-effort — if coords are missing or a step fails we log and continue
+  // so the transaction is never left in a broken state.
+  try {
+    const txId = (transaction as { id: string }).id;
+    const buyerId = (acceptedRequest as { buyer_id: string }).buyer_id;
+
+    // Fetch buyer profile for coordinates + address
+    const { data: buyer } = await supabaseAdmin
+      .from("users")
+      .select("lat, long, address")
+      .eq("id", buyerId)
+      .single();
+
+    // Fetch seller profile for coordinates + address fallback
+    const { data: seller } = await supabaseAdmin
+      .from("users")
+      .select("lat, long, address")
+      .eq("id", listing.seller_id)
+      .single();
+
+    const pickupLat = (listing.pickup_lat as number | null) ?? seller?.lat ?? null;
+    const pickupLong = (listing.pickup_long as number | null) ?? seller?.long ?? null;
+    const dropoffLat = buyer?.lat as number | null;
+    const dropoffLong = buyer?.long as number | null;
+
+    if (pickupLat != null && pickupLong != null && dropoffLat != null && dropoffLong != null) {
+      // Step A: Compute distance + ETA
+      const { distance_km, duration_min } = await getDistance(
+        pickupLat, pickupLong, dropoffLat, dropoffLong
+      );
+      const estimated_cost = Math.round(distance_km * config.COST_PER_KM * 100) / 100;
+
+      // Step B: Mark transaction as estimated
+      await supabaseAdmin
+        .from("transactions")
+        .update({ distance_km, estimated_cost, duration_min, status: "estimated" })
+        .eq("id", txId);
+
+      // Step C: Derive location labels (prefer human-readable addresses)
+      const pickupLocation = (listing.address as string | null)
+        ?? (seller?.address as string | null)
+        ?? `${pickupLat}, ${pickupLong}`;
+      const dropoffLocation = (buyer?.address as string | null)
+        ?? `${dropoffLat}, ${dropoffLong}`;
+
+      // Step D: Insert the job row → appears immediately on logistics dashboard
+      const { error: jobError } = await supabaseAdmin
+        .from("jobs")
+        .insert({
+          transaction_id: txId,
+          pickup_lat: pickupLat,
+          pickup_long: pickupLong,
+          pickup_location: pickupLocation,
+          dropoff_lat: dropoffLat,
+          dropoff_long: dropoffLong,
+          dropoff_location: dropoffLocation,
+          distance_km,
+          duration_min,
+          estimated_cost,
+          status: "open",
+        });
+
+      if (jobError) {
+        console.error("Auto-commit job insert error:", jobError);
+      } else {
+        // Step E: Mark transaction as committed
+        await supabaseAdmin
+          .from("transactions")
+          .update({ status: "committed" })
+          .eq("id", txId);
+      }
+    } else {
+      console.warn(
+        `Auto-commit skipped for transaction ${txId}: buyer or listing is missing coordinates.`
+      );
+    }
+  } catch (autoErr) {
+    // Non-fatal — the transaction exists; logistics team can be notified separately
+    console.error("Auto-estimate/commit failed (non-fatal):", autoErr);
+  }
+  // ────────────────────────────────────────────────────────────────────────────
 
   // 6. Notify accepted buyer
   await createNotification(

@@ -102,6 +102,14 @@ export default defineEventHandler(async (event) => {
     payload["decay_window_seconds"] = config.DECAY_WINDOW_SECONDS;
     payload["status"] = "open";
 
+    // Default pickup coordinates to the seller's profile coordinates if missing
+    if (payload["pickup_lat"] == null && profile.lat != null) {
+      payload["pickup_lat"] = profile.lat;
+    }
+    if (payload["pickup_long"] == null && profile.long != null) {
+      payload["pickup_long"] = profile.long;
+    }
+
     const { data, error } = await supabaseAdmin.from("listings").insert(payload).select().single();
 
     if (error) {

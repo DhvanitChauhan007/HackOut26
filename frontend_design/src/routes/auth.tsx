@@ -57,7 +57,12 @@ function AuthPage() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && event === "SIGNED_IN") {
-        navigate({ to: next as "/marketplace" });
+        const userRole = session.user?.user_metadata?.role;
+        if (userRole === "logistics") {
+          navigate({ to: "/dashboard/logistics" });
+        } else {
+          navigate({ to: next as "/marketplace" });
+        }
       }
     });
     return () => subscription.unsubscribe();
@@ -72,9 +77,43 @@ function AuthPage() {
     setLoading(true);
     resetMessages();
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      navigate({ to: next as "/marketplace" });
+
+      // After sign-in, re-POST the profile so geocoding runs for users
+      // who have null or stale coords (e.g. signed up before geocoder was added)
+      if (data.session) {
+        const token = data.session.access_token;
+        const profileRes = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (profileRes.ok) {
+          const profile = await profileRes.json() as { name?: string; role?: string; address?: string; lat?: number | null; long?: number | null };
+          // Re-POST with existing profile data — this triggers geocoding if address
+          // has changed or coords are missing (handled in me.ts)
+          if (profile.name && profile.role) {
+            await fetch("/api/users/me", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                name: profile.name,
+                role: profile.role,
+                address: profile.address ?? "",
+              }),
+            });
+          }
+        }
+      }
+
+      const userRole = data.session?.user?.user_metadata?.role;
+      if (userRole === "logistics") {
+        navigate({ to: "/dashboard/logistics" });
+      } else {
+        navigate({ to: next as "/marketplace" });
+      }
     } catch (err: unknown) {
       setMessage({ text: (err as Error).message, type: "error" });
     } finally {
@@ -124,7 +163,12 @@ function AuthPage() {
           const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
           console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
         }
-        navigate({ to: next as "/marketplace" });
+        const userRole = data.session.user?.user_metadata?.role;
+        if (userRole === "logistics") {
+          navigate({ to: "/dashboard/logistics" });
+        } else {
+          navigate({ to: next as "/marketplace" });
+        }
       } else {
         setMessage({ text: "Check your email to confirm your account.", type: "success" });
       }

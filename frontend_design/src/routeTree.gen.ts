@@ -14,9 +14,11 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardBuyerRouteImport } from './routes/dashboard/buyer'
 import { Route as DashboardLogisticsRouteImport } from './routes/dashboard/logistics'
 import { Route as DashboardSellerRouteImport } from './routes/dashboard/seller'
+import { Route as DashboardWagesRouteImport } from './routes/dashboard/wages'
 import { Route as ImpactIndexRouteImport } from './routes/impact/index'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace/index'
 import { Route as MarketplaceBulkLotsRouteImport } from './routes/marketplace/bulk-lots'
+import { Route as DashboardMapIdRouteImport } from './routes/dashboard/map.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -43,6 +45,11 @@ const DashboardSellerRoute = DashboardSellerRouteImport.update({
   path: '/dashboard/seller',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardWagesRoute = DashboardWagesRouteImport.update({
+  id: '/dashboard/wages',
+  path: '/dashboard/wages',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImpactIndexRoute = ImpactIndexRouteImport.update({
   id: '/impact/',
   path: '/impact/',
@@ -58,6 +65,11 @@ const MarketplaceBulkLotsRoute = MarketplaceBulkLotsRouteImport.update({
   path: '/marketplace/bulk-lots',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardMapIdRoute = DashboardMapIdRouteImport.update({
+  id: '/dashboard/map/$id',
+  path: '/dashboard/map/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -65,9 +77,11 @@ export interface FileRoutesByFullPath {
   '/dashboard/buyer': typeof DashboardBuyerRoute
   '/dashboard/logistics': typeof DashboardLogisticsRoute
   '/dashboard/seller': typeof DashboardSellerRoute
+  '/dashboard/wages': typeof DashboardWagesRoute
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact/': typeof ImpactIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
+  '/dashboard/map/$id': typeof DashboardMapIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,9 +89,11 @@ export interface FileRoutesByTo {
   '/dashboard/buyer': typeof DashboardBuyerRoute
   '/dashboard/logistics': typeof DashboardLogisticsRoute
   '/dashboard/seller': typeof DashboardSellerRoute
+  '/dashboard/wages': typeof DashboardWagesRoute
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact': typeof ImpactIndexRoute
   '/marketplace': typeof MarketplaceIndexRoute
+  '/dashboard/map/$id': typeof DashboardMapIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,9 +102,11 @@ export interface FileRoutesById {
   '/dashboard/buyer': typeof DashboardBuyerRoute
   '/dashboard/logistics': typeof DashboardLogisticsRoute
   '/dashboard/seller': typeof DashboardSellerRoute
+  '/dashboard/wages': typeof DashboardWagesRoute
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact/': typeof ImpactIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
+  '/dashboard/map/$id': typeof DashboardMapIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -98,9 +116,11 @@ export interface FileRouteTypes {
     | '/dashboard/buyer'
     | '/dashboard/logistics'
     | '/dashboard/seller'
+    | '/dashboard/wages'
     | '/marketplace/bulk-lots'
     | '/impact/'
     | '/marketplace/'
+    | '/dashboard/map/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -108,9 +128,11 @@ export interface FileRouteTypes {
     | '/dashboard/buyer'
     | '/dashboard/logistics'
     | '/dashboard/seller'
+    | '/dashboard/wages'
     | '/marketplace/bulk-lots'
     | '/impact'
     | '/marketplace'
+    | '/dashboard/map/$id'
   id:
     | '__root__'
     | '/'
@@ -118,9 +140,11 @@ export interface FileRouteTypes {
     | '/dashboard/buyer'
     | '/dashboard/logistics'
     | '/dashboard/seller'
+    | '/dashboard/wages'
     | '/marketplace/bulk-lots'
     | '/impact/'
     | '/marketplace/'
+    | '/dashboard/map/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -129,9 +153,11 @@ export interface RootRouteChildren {
   DashboardBuyerRoute: typeof DashboardBuyerRoute
   DashboardLogisticsRoute: typeof DashboardLogisticsRoute
   DashboardSellerRoute: typeof DashboardSellerRoute
+  DashboardWagesRoute: typeof DashboardWagesRoute
   MarketplaceBulkLotsRoute: typeof MarketplaceBulkLotsRoute
   ImpactIndexRoute: typeof ImpactIndexRoute
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
+  DashboardMapIdRoute: typeof DashboardMapIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -171,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSellerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/wages': {
+      id: '/dashboard/wages'
+      path: '/dashboard/wages'
+      fullPath: '/dashboard/wages'
+      preLoaderRoute: typeof DashboardWagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/impact/': {
       id: '/impact/'
       path: '/impact'
@@ -192,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceBulkLotsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/map/$id': {
+      id: '/dashboard/map/$id'
+      path: '/dashboard/map/$id'
+      fullPath: '/dashboard/map/$id'
+      preLoaderRoute: typeof DashboardMapIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -201,9 +241,11 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardBuyerRoute: DashboardBuyerRoute,
   DashboardLogisticsRoute: DashboardLogisticsRoute,
   DashboardSellerRoute: DashboardSellerRoute,
+  DashboardWagesRoute: DashboardWagesRoute,
   MarketplaceBulkLotsRoute: MarketplaceBulkLotsRoute,
   ImpactIndexRoute: ImpactIndexRoute,
   MarketplaceIndexRoute: MarketplaceIndexRoute,
+  DashboardMapIdRoute: DashboardMapIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

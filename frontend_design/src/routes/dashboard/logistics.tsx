@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { MapPin, PackageCheck, Truck } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Loader2, Map, MapPin, PackageCheck, Truck, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { PageTitle } from "../../components/PageTitle";
-import { jobs } from "../../components/views/BrowseView";
 import { MiniStat } from "../../components/views/BrowseView";
 import { useAuthGuard } from "../../lib/auth";
+import { useJobs } from "../../lib/useJobs";
 
 export const Route = createFileRoute("/dashboard/logistics")({
   component: LogisticsDashboard,
@@ -12,56 +12,177 @@ export const Route = createFileRoute("/dashboard/logistics")({
 
 function LogisticsDashboard() {
   useAuthGuard();
-  const [jobState, setJobState] = useState<Record<string, string>>({});
+  const { jobs, loading, error, claimJob, deliverJob, counts } = useJobs();
+  const [justClaimed, setJustClaimed] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  
-  const update = (id: string, current: string) => {
-    setJobState({ 
-      ...jobState, 
-      [id]: current === "Open" ? "Assigned" : current === "Assigned" || current === "In transit" ? "Delivered" : current 
-    });
+  const handleClaim = async (id: string) => {
+    setActionLoading(id);
+    setActionError(null);
+    try {
+      await claimJob(id);
+      setJustClaimed(id);
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeliver = async (id: string) => {
+    setActionLoading(id);
+    setActionError(null);
+    try {
+      await deliverJob(id);
+      if (justClaimed === id) setJustClaimed(null);
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const statusLabel = (s: string) => {
+    if (s === "open") return "Open";
+    if (s === "assigned") return "Assigned";
+    if (s === "delivered") return "Delivered";
+    return s;
+  };
+
+  const statusClass = (s: string) => {
+    if (s === "open") return "bg-accent text-accent-foreground";
+    if (s === "delivered") return "bg-primary/15 text-primary";
+    return "bg-warning/45";
   };
 
   return (
     <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <PageTitle icon={<Truck />} eyebrow="Logistics dashboard" title="Pickup & delivery jobs" copy="Manage available, assigned, in-transit, and delivered loads from one workspace." />
+      <PageTitle
+        icon={<Truck />}
+        eyebrow="Logistics dashboard"
+        title="Pickup & delivery jobs"
+        copy="Manage available, assigned, in-transit, and delivered loads from one workspace."
+      />
+
+      {/* Stats row */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStat label="Available" value="1 job" />
-        <MiniStat label="Assigned" value="1 job" />
-        <MiniStat label="In transit" value="1 job" />
-        <MiniStat label="Delivered today" value="6 jobs" />
+        <MiniStat label="Available" value={loading ? "—" : `${counts.open} job${counts.open !== 1 ? "s" : ""}`} />
+        <MiniStat label="Assigned" value={loading ? "—" : `${counts.assigned} job${counts.assigned !== 1 ? "s" : ""}`} />
+        <MiniStat label="In transit" value={loading ? "—" : `${counts.in_transit} jobs`} />
+        <MiniStat label="Delivered today" value={loading ? "—" : `${counts.delivered} job${counts.delivered !== 1 ? "s" : ""}`} />
       </div>
-      <div className="grid gap-5 lg:grid-cols-3">
-        {jobs.map((job, index) => { 
-          const status = jobState[job.id] ?? job.status; 
-          return (
-            <article key={job.id} className="rounded-card border-2 border-foreground/10 bg-card p-5">
-              <div className="flex items-center justify-between">
-                <span className="font-display text-lg font-semibold">{job.id}</span>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status === "Open" ? "bg-accent text-accent-foreground" : status === "Delivered" ? "bg-primary/15 text-primary" : "bg-warning/45"}`}>{status}</span>
-              </div>
-              <div className="my-5 flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-full bg-secondary"><MapPin className="size-5" /></span>
-                <div>
-                  <p className="font-semibold">{job.route}</p>
-                  <p className="text-sm text-muted-foreground">{job.detail}</p>
+
+      {/* Global action error */}
+      {actionError && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl bg-destructive/12 px-4 py-3 text-sm font-semibold text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          {actionError}
+        </div>
+      )}
+
+      {/* Loading state */}
+      {loading && (
+        <div className="flex h-48 items-center justify-center">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-destructive/30 bg-destructive/5 text-destructive">
+          <AlertCircle className="size-8" />
+          <p className="font-semibold">Failed to load jobs</p>
+          <p className="text-xs">{error}</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && jobs.length === 0 && (
+        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-foreground/15 bg-card text-muted-foreground">
+          <Truck className="size-8 opacity-40" />
+          <p className="font-semibold">No jobs available right now</p>
+          <p className="text-xs">New jobs appear here once a buyer commits to a transaction.</p>
+        </div>
+      )}
+
+      {/* Job cards */}
+      {!loading && !error && jobs.length > 0 && (
+        <div className="grid gap-5 lg:grid-cols-3">
+          {jobs.map((job) => {
+            const isLoading = actionLoading === job.id;
+            return (
+              <article key={job.id} className="rounded-card border-2 border-foreground/10 bg-card p-5">
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-lg font-semibold">
+                    {/* Show short ID like J-208 style */}
+                    J-{job.id.slice(-4).toUpperCase()}
+                  </span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass(job.status)}`}>
+                    {statusLabel(job.status)}
+                  </span>
                 </div>
-              </div>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-xs uppercase text-muted-foreground">Carrier payout</p>
-                  <p className="font-display text-2xl font-semibold">{job.payout}</p>
+
+                <div className="my-5 flex items-center gap-3">
+                  <span className="grid size-10 place-items-center rounded-full bg-secondary">
+                    <MapPin className="size-5" />
+                  </span>
+                  <div>
+                    <p className="font-semibold">{job.route}</p>
+                    <p className="text-sm text-muted-foreground">{job.detail} • {job.eta}</p>
+                  </div>
                 </div>
-                {status !== "Delivered" && (
-                  <button onClick={() => update(job.id, status)} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">{status === "Open" ? "Claim job" : "Mark delivered"}</button>
+
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Carrier payout</p>
+                    <p className="font-display text-2xl font-semibold">{job.payout}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {job.status === "open" ? (
+                      <button
+                        onClick={() => handleClaim(job.id)}
+                        disabled={isLoading}
+                        className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-button transition-all hover:-translate-y-1 hover:bg-primary/90 disabled:opacity-60 disabled:translate-y-0"
+                      >
+                        {isLoading && <Loader2 className="size-3.5 animate-spin" />}
+                        Claim job
+                      </button>
+                    ) : job.status !== "delivered" ? (
+                      <>
+                        <Link
+                          to="/dashboard/map/$id"
+                          params={{ id: job.id }}
+                          className="flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 shadow-button transition-all hover:-translate-y-1 hover:bg-amber-400/90"
+                        >
+                          <Map className="size-4" /> View Map
+                        </Link>
+                        <button
+                          onClick={() => handleDeliver(job.id)}
+                          disabled={isLoading}
+                          className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-button transition-all hover:-translate-y-1 hover:bg-primary/90 disabled:opacity-60 disabled:translate-y-0"
+                        >
+                          {isLoading && <Loader2 className="size-3.5 animate-spin" />}
+                          Mark delivered
+                        </button>
+                      </>
+                    ) : (
+                      <PackageCheck className="size-7 text-primary" />
+                    )}
+                  </div>
+                </div>
+
+                {justClaimed === job.id && job.status === "assigned" && (
+                  <p className="mt-4 animate-in fade-in slide-in-from-top-2 rounded-xl bg-highlight/40 p-3 text-xs font-semibold text-foreground">
+                    Buyer and seller notified. Job locked to your logistics profile.
+                  </p>
                 )}
-                {status === "Delivered" && <PackageCheck className="size-7 text-primary" />}
-              </div>
-              {index === 0 && status === "Assigned" && <p className="mt-4 rounded-xl bg-highlight/40 p-3 text-xs font-semibold">Buyer and seller notified. Job locked to GreenMiles Logistics.</p>}
-            </article>
-          ); 
-        })}
-      </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
