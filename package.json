@@ -7,7 +7,7 @@
     "dev": "concurrently -n \"backend,frontend\" -c \"blue,magenta\" \"npm run start --prefix backend\" \"npm run dev --prefix frontend_design\"",
     "dev:backend": "npm run start --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend_design",
-    "build": "npm run build --prefix frontend_design",
+    "build": "npm --prefix frontend_design install && npm --prefix frontend_design run build",
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend_design",
     "start:backend": "npm run start --prefix backend",
     "start:frontend": "npm run start --prefix frontend_design"
