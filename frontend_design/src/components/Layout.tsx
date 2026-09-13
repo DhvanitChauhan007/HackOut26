@@ -4,7 +4,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { supabase } from "../lib/supabase";
 
-const HIDE_NAV_ROUTES = ["/auth", "/"];
+const HIDE_NAV_ROUTES = ["/auth", "/", "/seller", "/seller/"];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [noticeOpen, setNoticeOpen] = useState(false);
@@ -60,7 +60,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
 
             <nav className="hidden items-center rounded-xl border-2 border-foreground/10 bg-card p-1 text-sm font-semibold md:flex" aria-label="Dashboard navigation">
-              {isLogistics ? (
+{isLogistics ? (
                 <>
                   <Link to="/dashboard/logistics" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Logistics</Link>
                   <Link to="/dashboard/wages" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Wages</Link>
@@ -68,7 +68,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </>
               ) : (
                 <>
-                  <Link to="/marketplace" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Marketplace</Link>
+                  <Link to="/marketplace" activeOptions={{ exact: true }} className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Marketplace</Link>
                   <Link to="/marketplace/bulk-lots" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Bulk lots</Link>
                   <Link to="/dashboard/seller" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Seller Hub</Link>
                   <Link to="/dashboard/buyer" className="[&.active]:bg-foreground [&.active]:text-background rounded-lg px-5 py-2 transition-colors text-muted-foreground hover:bg-foreground/5">Buyer Hub</Link>
@@ -109,21 +109,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {mobileOpen && (
             <nav className="border-t border-foreground/10 px-4 py-3 md:hidden">
               <div className="grid grid-cols-2 gap-2" aria-label="Dashboard navigation">
-                {isLogistics ? (
-                  <>
-                    <Link to="/dashboard/logistics" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Logistics</Link>
-                    <Link to="/dashboard/wages" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Wages</Link>
-                    <Link to="/impact" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Impact</Link>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/marketplace" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Marketplace</Link>
-                    <Link to="/marketplace/bulk-lots" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Bulk lots</Link>
-                    <Link to="/dashboard/seller" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Seller Hub</Link>
-                    <Link to="/dashboard/buyer" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Buyer Hub</Link>
-                    <Link to="/impact" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Impact</Link>
-                  </>
-                )}
+{isLogistics ? (
+                <>
+                  <Link to="/dashboard/logistics" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Logistics</Link>
+                  <Link to="/dashboard/wages" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Wages</Link>
+                  <Link to="/impact" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Impact</Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/marketplace" activeOptions={{ exact: true }} className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Marketplace</Link>
+                  <Link to="/marketplace/bulk-lots" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Bulk lots</Link>
+                  <Link to="/dashboard/seller" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Seller Hub</Link>
+                  <Link to="/dashboard/buyer" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Buyer Hub</Link>
+                  <Link to="/impact" className="rounded-xl px-3 py-2 text-left text-sm font-semibold bg-card [&.active]:bg-foreground [&.active]:text-background">Impact</Link>
+                </>
+              )}
               </div>
             </nav>
           )}

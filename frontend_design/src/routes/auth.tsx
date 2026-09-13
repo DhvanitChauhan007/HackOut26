@@ -13,7 +13,12 @@ export const Route = createFileRoute("/auth")({
 
 type Tab = "signin" | "signup" | "forgot";
 
-
+// Roles that are treated as sellers and get routed to the seller portal
+const SELLER_ROLES = ["manufacturer", "retailer"];
+function sellerRedirect(role: string | undefined, fallback: string) {
+  if (role === "logistics") return "/dashboard/logistics";
+  return role && SELLER_ROLES.includes(role) ? "/seller" : fallback;
+}
 
 const INPUT =
   "block w-full rounded-xl border-2 border-foreground/10 bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground transition-colors hover:border-foreground/20 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
@@ -57,12 +62,8 @@ function AuthPage() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && event === "SIGNED_IN") {
-        const userRole = session.user?.user_metadata?.role;
-        if (userRole === "logistics") {
-          navigate({ to: "/dashboard/logistics" });
-        } else {
-          navigate({ to: next as "/marketplace" });
-        }
+        const role = session.user.user_metadata?.["role"] as string | undefined;
+        navigate({ to: sellerRedirect(role, next) as any });
       }
     });
     return () => subscription.unsubscribe();
@@ -108,12 +109,8 @@ function AuthPage() {
         }
       }
 
-      const userRole = data.session?.user?.user_metadata?.role;
-      if (userRole === "logistics") {
-        navigate({ to: "/dashboard/logistics" });
-      } else {
-        navigate({ to: next as "/marketplace" });
-      }
+      const role = data.session?.user?.user_metadata?.["role"] as string | undefined;
+      navigate({ to: sellerRedirect(role, next) as any });
     } catch (err: unknown) {
       setMessage({ text: (err as Error).message, type: "error" });
     } finally {
@@ -163,12 +160,7 @@ function AuthPage() {
           const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
           console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
         }
-        const userRole = data.session.user?.user_metadata?.role;
-        if (userRole === "logistics") {
-          navigate({ to: "/dashboard/logistics" });
-        } else {
-          navigate({ to: next as "/marketplace" });
-        }
+        navigate({ to: sellerRedirect(role, next) as any });
       } else {
         setMessage({ text: "Check your email to confirm your account.", type: "success" });
       }

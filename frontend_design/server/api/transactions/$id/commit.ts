@@ -74,6 +74,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Failed to commit transaction" });
   }
 
+  const listing = transaction.listing as Record<string, unknown> | null;
+  const cond = typeof listing?.["condition"] === "string" ? listing["condition"] : "";
+  const pickupLocation = cond.includes("Pickup: ") ? cond.split("Pickup: ")[1]?.replace(")", "") : (cond || "Seller Facility");
+
   const { data: job, error: jobError } = await supabaseAdmin
     .from("jobs")
     .insert({
