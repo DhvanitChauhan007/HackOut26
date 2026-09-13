@@ -16,10 +16,9 @@ type Tab = "signin" | "signup" | "forgot";
 // Roles that are treated as sellers and get routed to the seller portal
 const SELLER_ROLES = ["manufacturer", "retailer"];
 function sellerRedirect(role: string | undefined, fallback: string) {
+  if (role === "logistics") return "/dashboard/logistics";
   return role && SELLER_ROLES.includes(role) ? "/seller" : fallback;
 }
-
-
 
 const INPUT =
   "block w-full rounded-xl border-2 border-foreground/10 bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground transition-colors hover:border-foreground/20 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
@@ -64,7 +63,7 @@ function AuthPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && event === "SIGNED_IN") {
         const role = session.user.user_metadata?.["role"] as string | undefined;
-        navigate({ to: sellerRedirect(role, next) as "/seller" });
+        navigate({ to: sellerRedirect(role, next) as any });
       }
     });
     return () => subscription.unsubscribe();
@@ -81,8 +80,37 @@ function AuthPage() {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+
+      // After sign-in, re-POST the profile so geocoding runs for users
+      // who have null or stale coords (e.g. signed up before geocoder was added)
+      if (data.session) {
+        const token = data.session.access_token;
+        const profileRes = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (profileRes.ok) {
+          const profile = await profileRes.json() as { name?: string; role?: string; address?: string; lat?: number | null; long?: number | null };
+          // Re-POST with existing profile data — this triggers geocoding if address
+          // has changed or coords are missing (handled in me.ts)
+          if (profile.name && profile.role) {
+            await fetch("/api/users/me", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                name: profile.name,
+                role: profile.role,
+                address: profile.address ?? "",
+              }),
+            });
+          }
+        }
+      }
+
       const role = data.session?.user?.user_metadata?.["role"] as string | undefined;
-      navigate({ to: sellerRedirect(role, next) as "/seller" });
+      navigate({ to: sellerRedirect(role, next) as any });
     } catch (err: unknown) {
       setMessage({ text: (err as Error).message, type: "error" });
     } finally {
@@ -120,24 +148,19 @@ function AuthPage() {
 
       // Create profile via API if session exists immediately (no email confirm required)
       if (data.session) {
-        try {
-          const profileRes = await fetch("/api/users/me", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${data.session.access_token}`,
-            },
-            body: JSON.stringify({ name, role, address }),
-          });
-          if (!profileRes.ok) {
-            const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
-            console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
-          }
-        } catch (profileFetchErr) {
-          // Network-level error (e.g. server not yet running in dev) — don't block the user
-          console.warn("Note: Could not reach profile API, proceeding to UI.", profileFetchErr);
+        const profileRes = await fetch("/api/users/me", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.session.access_token}`,
+          },
+          body: JSON.stringify({ name, role, address }),
+        });
+        if (!profileRes.ok) {
+          const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
+          console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
         }
-        navigate({ to: sellerRedirect(role, next) as "/seller" });
+        navigate({ to: sellerRedirect(role, next) as any });
       } else {
         setMessage({ text: "Check your email to confirm your account.", type: "success" });
       }

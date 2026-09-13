@@ -102,6 +102,12 @@ export default defineEventHandler(async (event) => {
     payload["decay_window_seconds"] = config.DECAY_WINDOW_SECONDS;
     payload["status"] = "open";
 
+    // Default pickup coordinates to the seller's profile coordinates if missing
+    if (payload["pickup_lat"] == null && profile.lat != null) {
+      payload["pickup_lat"] = profile.lat;
+    }
+    if (payload["pickup_long"] == null && profile.long != null) {
+      payload["pickup_long"] = profile.long;
     // pickup_address is not a database column; embed it in condition to prevent schema error
     if (payload["pickup_address"]) {
       const addr = payload["pickup_address"];

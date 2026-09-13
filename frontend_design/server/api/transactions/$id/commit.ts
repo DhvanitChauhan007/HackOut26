@@ -32,6 +32,7 @@ export default defineEventHandler(async (event) => {
 
   let firstPickupLat: number | null = null;
   let firstPickupLong: number | null = null;
+  let pickupLocation = "";
   let bulkItems: { listing_id: string; seller_id: string; pickup_lat: number; pickup_long: number }[] = [];
 
   if (transaction.bulk_lot_id) {
@@ -47,11 +48,20 @@ export default defineEventHandler(async (event) => {
     bulkItems = items;
     firstPickupLat = items[0].pickup_lat;
     firstPickupLong = items[0].pickup_long;
+    pickupLocation = "Multiple pickup locations";
   } else {
     const listing = transaction.listing;
     if (!listing) throw createError({ statusCode: 404, message: "Associated listing not found" });
-    firstPickupLat = listing.pickup_lat;
-    firstPickupLong = listing.pickup_long;
+
+    const { data: seller } = await supabaseAdmin
+      .from("users")
+      .select("lat, long, address")
+      .eq("id", transaction.seller_id)
+      .single();
+
+    firstPickupLat = listing.pickup_lat ?? seller?.lat ?? null;
+    firstPickupLong = listing.pickup_long ?? seller?.long ?? null;
+    pickupLocation = listing.address ?? seller?.address ?? `${firstPickupLat}, ${firstPickupLong}`;
   }
 
   const { error: updateError } = await supabaseAdmin
@@ -74,12 +84,12 @@ export default defineEventHandler(async (event) => {
       transaction_id: id,
       pickup_lat: firstPickupLat,
       pickup_long: firstPickupLong,
+      pickup_location: pickupLocation,
       dropoff_lat: buyer.lat,
       dropoff_long: buyer.long,
-      pickup_location: pickupLocation,
-      dropoff_location: buyer.address || "Buyer Facility",
+      dropoff_location: buyer.address ?? `${buyer.lat}, ${buyer.long}`,
       distance_km: transaction.distance_km,
-      duration_min: 38,
+      duration_min: transaction.duration_min,
       estimated_cost: transaction.estimated_cost,
       status: "open",
     })

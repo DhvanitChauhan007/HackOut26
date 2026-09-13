@@ -102,13 +102,32 @@ export async function getDistance(
         return { distance_km: distanceKm, duration_min: durationMin, cached: false };
       } else {
         console.warn("Google Distance Matrix returned non-OK:", data);
-        return fallbackDistance(originLat, originLong, destLat, destLong);
       }
     } catch (err) {
       console.error("Google Distance Matrix API error:", err);
-      return fallbackDistance(originLat, originLong, destLat, destLong);
     }
   }
 
+  // Fallback to OSRM (free, no API key required) for real road distance
+  try {
+    // Note: OSRM expects longitude,latitude order
+    const url = `https://router.project-osrm.org/route/v1/driving/${originLong},${originLat};${destLong},${destLat}?overview=false`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+        const distanceKm = data.routes[0].distance / 1000;
+        const durationMin = data.routes[0].duration / 60;
+        await cacheDistance(originLat, originLong, destLat, destLong, distanceKm, durationMin);
+        return { distance_km: distanceKm, duration_min: durationMin, cached: false };
+      } else {
+        console.warn("OSRM returned non-OK or empty routes:", data);
+      }
+    }
+  } catch (err) {
+    console.error("OSRM API error:", err);
+  }
+
+  // Final fallback: straight-line estimation if everything else fails
   return fallbackDistance(originLat, originLong, destLat, destLong);
 }

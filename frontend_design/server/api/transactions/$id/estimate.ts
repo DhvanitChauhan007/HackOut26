@@ -68,10 +68,24 @@ export default defineEventHandler(async (event) => {
   } else {
     const listing = transaction.listing;
     if (!listing) throw createError({ statusCode: 404, message: "Associated listing not found" });
-    if (listing.pickup_lat == null || listing.pickup_long == null) {
-      throw createError({ statusCode: 400, message: "Listing is missing pickup coordinates" });
+    
+    let pLat = listing.pickup_lat;
+    let pLong = listing.pickup_long;
+    if (pLat == null || pLong == null) {
+      const { data: seller } = await supabaseAdmin
+        .from("users")
+        .select("lat, long")
+        .eq("id", transaction.seller_id)
+        .single();
+      pLat = seller?.lat ?? null;
+      pLong = seller?.long ?? null;
     }
-    const leg = await getDistance(listing.pickup_lat, listing.pickup_long, buyer.lat, buyer.long);
+
+    if (pLat == null || pLong == null) {
+      throw createError({ statusCode: 400, message: "Listing/Seller is missing pickup coordinates" });
+    }
+
+    const leg = await getDistance(pLat, pLong, buyer.lat, buyer.long);
     total_distance_km = leg.distance_km;
     total_duration_min = leg.duration_min;
   }
@@ -80,7 +94,7 @@ export default defineEventHandler(async (event) => {
 
   const { error: updateError } = await supabaseAdmin
     .from("transactions")
-    .update({ distance_km: total_distance_km, estimated_cost, status: "estimated" })
+    .update({ distance_km: total_distance_km, estimated_cost, duration_min: total_duration_min, status: "estimated" })
     .eq("id", id);
 
   if (updateError) {
