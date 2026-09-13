@@ -112,10 +112,9 @@ function LogisticsDashboard() {
           {jobs.map((job) => {
             const isLoading = actionLoading === job.id;
             return (
-              <article key={job.id} className="rounded-card border-2 border-foreground/10 bg-card p-5">
+              <article key={job.id} className="flex flex-col rounded-card border-2 border-foreground/10 bg-card p-5">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-lg font-semibold">
-                    {/* Show short ID like J-208 style */}
                     J-{job.id.slice(-4).toUpperCase()}
                   </span>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass(job.status)}`}>
@@ -123,8 +122,8 @@ function LogisticsDashboard() {
                   </span>
                 </div>
 
-                <div className="my-5 flex items-center gap-3">
-                  <span className="grid size-10 place-items-center rounded-full bg-secondary">
+                <div className="my-5 flex items-start gap-3">
+                  <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-secondary">
                     <MapPin className="size-5" />
                   </span>
                   <div>
@@ -133,44 +132,44 @@ function LogisticsDashboard() {
                   </div>
                 </div>
 
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-xs uppercase text-muted-foreground">Carrier payout</p>
-                    <p className="font-display text-2xl font-semibold">{job.payout}</p>
-                  </div>
+                <div className="mt-auto">
+                  <p className="text-xs uppercase text-muted-foreground">Carrier payout</p>
+                  <p className="font-display text-2xl font-semibold">{job.payout}</p>
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    {job.status === "open" ? (
+                <div className="mt-4">
+                  {job.status === "open" ? (
+                    <button
+                      onClick={() => handleClaim(job.id)}
+                      disabled={isLoading}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary/90 disabled:opacity-60 disabled:translate-y-0"
+                    >
+                      {isLoading && <Loader2 className="size-3.5 animate-spin" />}
+                      Claim job
+                    </button>
+                  ) : job.status !== "delivered" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        to="/dashboard/map/$id"
+                        params={{ id: job.id }}
+                        className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-400 py-2.5 text-sm font-semibold text-amber-950 transition-all hover:-translate-y-0.5 hover:bg-amber-400/90"
+                      >
+                        <Map className="size-3.5" /> View Map
+                      </Link>
                       <button
-                        onClick={() => handleClaim(job.id)}
+                        onClick={() => handleDeliver(job.id)}
                         disabled={isLoading}
-                        className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-button transition-all hover:-translate-y-1 hover:bg-primary/90 disabled:opacity-60 disabled:translate-y-0"
+                        className="flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary/90 disabled:opacity-60 disabled:translate-y-0"
                       >
                         {isLoading && <Loader2 className="size-3.5 animate-spin" />}
-                        Claim job
+                        Mark delivered
                       </button>
-                    ) : job.status !== "delivered" ? (
-                      <>
-                        <Link
-                          to="/dashboard/map/$id"
-                          params={{ id: job.id }}
-                          className="flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 shadow-button transition-all hover:-translate-y-1 hover:bg-amber-400/90"
-                        >
-                          <Map className="size-4" /> View Map
-                        </Link>
-                        <button
-                          onClick={() => handleDeliver(job.id)}
-                          disabled={isLoading}
-                          className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-button transition-all hover:-translate-y-1 hover:bg-primary/90 disabled:opacity-60 disabled:translate-y-0"
-                        >
-                          {isLoading && <Loader2 className="size-3.5 animate-spin" />}
-                          Mark delivered
-                        </button>
-                      </>
-                    ) : (
-                      <PackageCheck className="size-7 text-primary" />
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 rounded-xl bg-primary/10 py-2.5 text-sm font-semibold text-primary">
+                      <PackageCheck className="size-4" /> Delivered
+                    </div>
+                  )}
                 </div>
 
                 {justClaimed === job.id && job.status === "assigned" && (

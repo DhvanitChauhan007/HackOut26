@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { PageTitle } from "../../components/PageTitle";
 import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, MapPin, PackageCheck, Truck } from "lucide-react";
 import { useJobs } from "../../lib/useJobs";
+import { haversine } from "../../services/haversine";
+import { geocodeAddress } from "../../services/geocode";
+import { supabase } from "../../lib/supabase";
 import "leaflet/dist/leaflet.css";
 
 export const Route = createFileRoute("/dashboard/map/$id")({
@@ -21,6 +24,8 @@ function MapPage() {
   const [routeLoading, setRouteLoading] = useState(true);
   const [delivering, setDelivering] = useState(false);
   const [deliveredSuccess, setDeliveredSuccess] = useState(false);
+  const [routeStats, setRouteStats] = useState<{ distanceKm: number; eta: string } | null>(null);
+  const [coords, setCoords] = useState<{ pLat: number; pLon: number; dLat: number; dLon: number } | null>(null);
 
   const handleDeliver = async () => {
     if (!job) return;
@@ -41,7 +46,65 @@ function MapPage() {
 
     let isMounted = true;
 
-    import("leaflet").then((L) => {
+    async function initMap() {
+      if (!job) return;
+
+      // 1. Resolve true coordinates, validating against location text
+      let pLat = job.pickup_lat;
+      let pLon = job.pickup_long;
+      let dLat = job.dropoff_lat;
+      let dLon = job.dropoff_long;
+
+      const pText = (job.pickup_location || "").toLowerCase();
+      const dText = (job.dropoff_location || "").toLowerCase();
+
+      // Mismatch detection (e.g. Gujarat location with Bengaluru coordinates < 20°N, or vice versa)
+      const pIsGujarat = /daiict|gandhinagar|surat|vesu|vr mall|gujarat|ahmedabad|bharuch|surendranagar|rajkot|vadodara/i.test(pText);
+      const dIsGujarat = /daiict|gandhinagar|surat|vesu|vr mall|gujarat|ahmedabad|bharuch|surendranagar|rajkot|vadodara/i.test(dText);
+      const pIsSouth = /bengaluru|bangalore|peenya|whitefield|hebbal|karnataka/i.test(pText);
+      const dIsSouth = /bengaluru|bangalore|peenya|whitefield|hebbal|karnataka/i.test(dText);
+
+      const pMismatch = (pIsGujarat && (pLat == null || pLat < 20)) || (pIsSouth && pLat != null && pLat > 20);
+      const dMismatch = (dIsGujarat && (dLat == null || dLat < 20)) || (dIsSouth && dLat != null && dLat > 20);
+
+      if (pLat == null || pLon == null || pMismatch || pLat === 0) {
+        const pGeo = await geocodeAddress(job.pickup_location);
+        pLat = pGeo.lat;
+        pLon = pGeo.long;
+      }
+
+      if (dLat == null || dLon == null || dMismatch || dLat === 0) {
+        const dGeo = await geocodeAddress(job.dropoff_location);
+        dLat = dGeo.lat;
+        dLon = dGeo.long;
+      }
+
+      pLat = pLat ?? 23.188408;
+      pLon = pLon ?? 72.627969;
+      dLat = dLat ?? 21.145022;
+      dLon = dLon ?? 72.757319;
+
+      if (!isMounted || !mapContainerRef.current) return;
+      setCoords({ pLat, pLon, dLat, dLon });
+
+      // Auto-heal Supabase database row if mismatch was detected
+      if ((pMismatch || dMismatch) && job.id) {
+        const trueDirectKm = haversine(pLat, pLon, dLat, dLon);
+        const trueRoadKm = Math.max(1.2, Math.round(trueDirectKm * 1.25 * 10) / 10);
+        supabase
+          .from("jobs")
+          .update({
+            pickup_lat: pLat,
+            pickup_long: pLon,
+            dropoff_lat: dLat,
+            dropoff_long: dLon,
+            distance_km: trueRoadKm,
+          })
+          .eq("id", job.id)
+          .then(() => {}, () => {});
+      }
+
+      const L = await import("leaflet");
       if (!isMounted || !mapContainerRef.current) return;
 
       // Clean up previous map instance if any
@@ -49,11 +112,6 @@ function MapPage() {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
-
-      const pLat = job.pickup_lat ?? 23.1895;
-      const pLon = job.pickup_long ?? 72.6302;
-      const dLat = job.dropoff_lat ?? 21.1452;
-      const dLon = job.dropoff_long ?? 72.7767;
 
       const map = L.map(mapContainerRef.current, {
         zoomControl: true,
@@ -120,6 +178,16 @@ function MapPage() {
           </div>
         `);
 
+      // Immediate real dynamic distance calculation via Haversine road factor
+      const directKm = haversine(pLat, pLon, dLat, dLon);
+      const estRoadKm = Math.max(1.2, Math.round(directKm * 1.25 * 10) / 10);
+      const estDurationMins = Math.max(10, Math.round((estRoadKm / 45) * 60));
+      const estEta = estDurationMins >= 60
+        ? `~${Math.floor(estDurationMins / 60)}h ${Math.round(estDurationMins % 60)}m`
+        : `~${estDurationMins} min`;
+
+      setRouteStats({ distanceKm: estRoadKm, eta: estEta });
+
       // Fetch highway road route from OSRM
       setRouteLoading(true);
       fetch(
@@ -129,7 +197,16 @@ function MapPage() {
         .then((data) => {
           if (!isMounted || !map) return;
           if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates) {
-            const rawCoords = data.routes[0].geometry.coordinates;
+            const r = data.routes[0];
+            const roadKm = Math.max(1.2, Math.round((r.distance / 1000) * 10) / 10);
+            const durationMins = Math.max(10, Math.round(r.duration / 60));
+            const liveEta = durationMins >= 60
+              ? `~${Math.floor(durationMins / 60)}h ${Math.round(durationMins % 60)}m`
+              : `~${durationMins} min`;
+
+            setRouteStats({ distanceKm: roadKm, eta: liveEta });
+
+            const rawCoords = r.geometry.coordinates;
             // Convert [lon, lat] from GeoJSON to [lat, lon] for Leaflet
             const latLngs = rawCoords.map((c: [number, number]) => [c[1], c[0]]);
             
@@ -150,7 +227,8 @@ function MapPage() {
                 <div style="font-family: inherit; font-size: 13px;">
                   <strong style="color: #d97706;">CARRIER LIVE POSITION</strong><br/>
                   In transit towards destination<br/>
-                  <strong>ETA:</strong> ${job.eta}
+                  <strong>ETA:</strong> ${liveEta}<br/>
+                  <strong>Road Distance:</strong> ${roadKm} km
                 </div>
               `);
 
@@ -176,7 +254,9 @@ function MapPage() {
         .finally(() => {
           if (isMounted) setRouteLoading(false);
         });
-    });
+    }
+
+    initMap();
 
     return () => {
       isMounted = false;
@@ -187,7 +267,9 @@ function MapPage() {
     };
   }, [job]);
 
-  const googleMapsUrl = job
+  const googleMapsUrl = job && coords
+    ? `https://www.google.com/maps/dir/?api=1&origin=${coords.pLat},${coords.pLon}&destination=${coords.dLat},${coords.dLon}`
+    : job
     ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(job.pickup_location)}&destination=${encodeURIComponent(job.dropoff_location)}`
     : "#";
 
@@ -225,7 +307,7 @@ function MapPage() {
                 <p className="font-display text-lg font-semibold text-foreground">{job.route}</p>
               </div>
               <p className="text-sm font-medium text-muted-foreground">
-                {job.detail} • <span className="font-semibold text-primary">{job.eta}</span>
+                {job.detail.includes("·") ? job.detail.split("·")[0] + "· " : ""}{routeStats ? `${routeStats.distanceKm} km` : `${job.distance_km} km`} • <span className="font-semibold text-primary">{routeStats?.eta || job.eta}</span>
               </p>
             </div>
 
@@ -292,7 +374,7 @@ function MapPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs uppercase text-muted-foreground">Live Transit</p>
-                <p className="font-semibold text-foreground">{job.distance_km} km • {job.eta}</p>
+                <p className="font-semibold text-foreground">{routeStats ? `${routeStats.distanceKm} km • ${routeStats.eta}` : `${job.distance_km} km • ${job.eta}`}</p>
               </div>
             </div>
 

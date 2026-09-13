@@ -5,9 +5,11 @@ import { createListing, updateRequest, getListings, getJobs } from "../../lib/ap
 import { BrowseView, MiniStat } from "../../components/views/BrowseView";
 import { PageTitle } from "../../components/PageTitle";
 import { computeCurrentPrice, decayFraction, getFallbackTiming } from "../../services/priceDecay";
+import { haversine } from "../../services/haversine";
 import {
   ArrowUpRight,
   Box,
+  Calculator,
   Check,
   Clock3,
   Factory,
@@ -17,10 +19,15 @@ import {
   Plus,
   Recycle,
   RefreshCw,
+  Trash2,
   TrendingUp,
   Truck,
+  User,
   X,
 } from "lucide-react";
+import { SellerWagesCalculator } from "../../components/seller/SellerWagesCalculator";
+import { geocodeAddress } from "../../services/geocode";
+import { apiRequest } from "../../lib/apiClient";
 
 export const Route = createFileRoute("/seller/")({
   component: SellerPortal,
@@ -35,7 +42,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "hub", label: "Seller Hub" },
   { id: "marketplace", label: "Marketplace" },
   { id: "bulk-lots", label: "Bulk Lots" },
-  { id: "earnings", label: "Earnings" },
+  { id: "earnings", label: "Wages & Earnings" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,22 +58,24 @@ function SellerNavbar({
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    navigate({ to: "/" });
-    setTimeout(() => {
-      supabase.auth.signOut();
-    }, 50);
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Sign out error:", err);
+    }
+    window.location.href = "/";
   };
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-foreground/10 bg-background/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between px-4 sm:px-5">
+      <div className="mx-auto flex h-[4.5rem] max-w-[1240px] items-center justify-between px-4 sm:px-5">
         {/* Logo */}
         <Link to="/" className="flex items-center">
           <img
             src="/logo.png"
             alt="ReRoute"
-            className="h-10 w-auto mix-blend-multiply"
+            className="h-14 w-auto mix-blend-multiply"
           />
         </Link>
 
@@ -92,6 +101,14 @@ function SellerNavbar({
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
+          <Link
+            to="/profile"
+            aria-label="Profile"
+            title="My Profile"
+            className="grid size-9 place-items-center rounded-full bg-foreground/8 text-foreground transition-all duration-300 hover:-translate-y-0.5 hover:bg-foreground/15"
+          >
+            <User className="size-4" />
+          </Link>
           <button
             aria-label="Log out"
             onClick={handleLogout}
@@ -111,13 +128,13 @@ function SellerNavbar({
         </div>
       </div>
 
-      {/* Mobile nav — same 3 tabs */}
+      {/* Mobile nav — 4 tabs */}
       {mobileOpen && (
         <nav
           className="border-t border-foreground/10 px-4 py-3 md:hidden"
           aria-label="Seller navigation"
         >
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {TABS.map(({ id, label }) => (
               <button
                 key={id}
@@ -147,8 +164,40 @@ function SellerNavbar({
 // ─────────────────────────────────────────────────────────────────────────────
 function SellerPortal() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("hub");
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get("tab");
+      if (t === "earnings" || t === "wages") return "earnings";
+      if (t === "marketplace") return "marketplace";
+      if (t === "bulk-lots") return "bulk-lots";
+    }
+    return "hub";
+  });
+  const [listingPrefill, setListingPrefill] = useState<{
+    material_type: string;
+    sub_grade: string;
+    quantity: string;
+    unit: string;
+    list_price: string;
+    contamination_pct: string;
+  } | null>(null);
   const [checking, setChecking] = useState(true);
+
+  const handleApplyToNewListing = (preset: {
+    material_type: string;
+    sub_grade: string;
+    quantity: string;
+    unit: string;
+    list_price: string;
+    contamination_pct: string;
+  }) => {
+    setListingPrefill(preset);
+    setTab("hub");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -183,8 +232,16 @@ function SellerPortal() {
               this tab automatically reflects those changes — no edits needed here. */}
           {tab === "marketplace" && <BrowseView readOnly={true} />}
           {tab === "bulk-lots" && <BulkLotsView />}
-          {tab === "hub" && <SellerHub />}
-          {tab === "earnings" && <EarningsView />}
+          {tab === "hub" && (
+            <SellerHub
+              initialPrefill={listingPrefill}
+              onClearPrefill={() => setListingPrefill(null)}
+              onTabChange={setTab}
+            />
+          )}
+          {tab === "earnings" && (
+            <SellerWagesCalculator onApplyToNewListing={handleApplyToNewListing} />
+          )}
         </div>
       </main>
     </div>
@@ -192,142 +249,21 @@ function SellerPortal() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bulk Lots — read-only awareness view for sellers (source file not touched)
+// Wages & Earnings View (wraps SellerWagesCalculator)
 // ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// Earnings — total revenue from sold listings + job list
-// ─────────────────────────────────────────────────────────────────────────────
-type EarningJob = {
-  id: string;
-  material_type: string;
-  quantity: number;
-  unit: string;
-  list_price: number;
-  status: string;
-  created_at: string;
-};
-
-function EarningsView() {
-  const [jobs, setJobs] = useState<EarningJob[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        // Real API: fetch seller's sold listings
-        const data = await getListings({ status: "sold" });
-        setJobs(Array.isArray(data) ? data : data?.listings ?? []);
-      } catch {
-        // Demo fallback: read from localStorage
-        try {
-          const local: EarningJob[] = JSON.parse(
-            localStorage.getItem("seller_listings") ?? "[]"
-          );
-          setJobs(local);
-        } catch {
-          setJobs([]);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  const totalEarnings = jobs.reduce(
-    (sum, j) => sum + (j.list_price ?? 0) * (j.quantity ?? 0),
-    0
-  );
-  const avgPerJob = jobs.length ? totalEarnings / jobs.length : 0;
-
-  return (
-    <section className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-      <PageTitle
-        icon={<TrendingUp />}
-        eyebrow="Revenue overview"
-        title="Your earnings"
-        copy="A running total of every completed sale from your listings."
-      />
-
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-panel border-2 border-foreground/10 bg-card p-5">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Total earnings</p>
-          <p className="mt-2 font-display text-3xl font-semibold">
-            {loading ? "—" : `₹${totalEarnings.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-          </p>
-        </div>
-        <div className="rounded-panel border-2 border-foreground/10 bg-card p-5">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Jobs completed</p>
-          <p className="mt-2 font-display text-3xl font-semibold">
-            {loading ? "—" : jobs.length}
-          </p>
-        </div>
-        <div className="rounded-panel border-2 border-foreground/10 bg-card p-5">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Avg. per job</p>
-          <p className="mt-2 font-display text-3xl font-semibold">
-            {loading ? "—" : `₹${avgPerJob.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-          </p>
-        </div>
-      </div>
-
-      {/* Job list */}
-      <div className="rounded-panel border-2 border-foreground/10 bg-card">
-        <div className="border-b-2 border-foreground/10 px-5 py-4">
-          <h2 className="font-display text-lg font-semibold">Completed listings</h2>
-        </div>
-
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="size-5 animate-spin text-primary" />
-          </div>
-        )}
-
-        {!loading && jobs.length === 0 && (
-          <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-            No completed sales yet. Post a listing to get started.
-          </p>
-        )}
-
-        {!loading && jobs.length > 0 && (
-          <ul className="divide-y-2 divide-foreground/6">
-            {jobs.map((job, i) => {
-              const jobEarning = (job.list_price ?? 0) * (job.quantity ?? 0);
-              return (
-                <li key={job.id ?? i} className="flex items-center justify-between gap-4 px-5 py-4">
-                  <div>
-                    <p className="font-semibold capitalize">
-                      {job.material_type?.replace(/_/g, " ")}
-                    </p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {job.quantity} {job.unit} · {job.id}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {job.created_at
-                        ? new Date(job.created_at).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "—"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-display text-lg font-semibold">
-                      ₹{jobEarning.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                    </p>
-                    <span className="mt-1 inline-block rounded-full bg-primary/12 px-2.5 py-0.5 text-xs font-semibold text-primary capitalize">
-                      {job.status}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </section>
-  );
+function EarningsView({
+  onApplyToNewListing,
+}: {
+  onApplyToNewListing?: ((preset: {
+    material_type: string;
+    sub_grade: string;
+    quantity: string;
+    unit: string;
+    list_price: string;
+    contamination_pct: string;
+  }) => void) | undefined;
+}) {
+  return <SellerWagesCalculator onApplyToNewListing={onApplyToNewListing} />;
 }
 
 function BulkLotsView() {
@@ -418,7 +354,22 @@ const BLANK_FORM = {
   price_floor: "",
 };
 
-function SellerHub() {
+function SellerHub({
+  initialPrefill,
+  onClearPrefill,
+  onTabChange,
+}: {
+  initialPrefill?: {
+    material_type: string;
+    sub_grade: string;
+    quantity: string;
+    unit: string;
+    list_price: string;
+    contamination_pct: string;
+  } | null;
+  onClearPrefill?: () => void;
+  onTabChange?: (tab: Tab) => void;
+} = {}) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [submitting, setSubmitting] = useState(false);
@@ -427,9 +378,32 @@ function SellerHub() {
     ok: boolean;
   } | null>(null);
 
+  // Sync simulator prefill if coming from Wages Calculator
+  useEffect(() => {
+    if (initialPrefill) {
+      setForm((prev) => ({
+        ...prev,
+        material_type: initialPrefill.material_type || prev.material_type,
+        sub_grade: initialPrefill.sub_grade || prev.sub_grade,
+        quantity: initialPrefill.quantity || prev.quantity,
+        unit: initialPrefill.unit || prev.unit,
+        list_price: initialPrefill.list_price || prev.list_price,
+        price_floor: initialPrefill.list_price
+          ? String(Math.round(Number(initialPrefill.list_price) * 0.75))
+          : prev.price_floor,
+        contamination_pct:
+          initialPrefill.contamination_pct || prev.contamination_pct,
+      }));
+      setShowForm(true);
+      onClearPrefill?.();
+    }
+  }, [initialPrefill, onClearPrefill]);
+
   // User & Address pre-filled from signed-in user's metadata
   const [sellerId, setSellerId] = useState<string>("");
   const [sellerAddress, setSellerAddress] = useState<string>("");
+  const [sellerLat, setSellerLat] = useState<number | null>(null);
+  const [sellerLong, setSellerLong] = useState<number | null>(null);
 
   // Dynamic listings state
   const [myListings, setMyListings] = useState<any[]>([]);
@@ -447,6 +421,47 @@ function SellerHub() {
     return {};
   });
   const [submittingReqId, setSubmittingReqId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteListing = async (listingId: string) => {
+    if (!window.confirm("Are you sure you want to delete the listing?")) {
+      return;
+    }
+    setDeletingId(listingId);
+    try {
+      // 1. Try server API endpoint
+      try {
+        await apiRequest(`/api/listings/${listingId}`, { method: "DELETE" });
+      } catch (apiErr) {
+        console.warn("API delete listing failed, falling back to direct Supabase:", apiErr);
+      }
+
+      // 2. Direct Supabase delete fallback
+      await supabase.from("requests").delete().eq("listing_id", listingId);
+      await supabase.from("bulk_lot_items").delete().eq("listing_id", listingId);
+      await supabase.from("listings").delete().eq("id", listingId);
+
+      // 3. Update local state & storage immediately
+      setMyListings((prev) => prev.filter((l) => l.id !== listingId));
+      try {
+        const existing: any[] = JSON.parse(localStorage.getItem("seller_listings") ?? "[]");
+        localStorage.setItem("seller_listings", JSON.stringify(existing.filter((l: any) => l.id !== listingId)));
+
+        setRequestsByListing((prev) => {
+          const copy = { ...prev };
+          delete copy[listingId];
+          localStorage.setItem("seller_requests_by_listing", JSON.stringify(copy));
+          return copy;
+        });
+      } catch {}
+
+      setSubmitMsg({ text: "Listing successfully deleted from the platform.", ok: true });
+    } catch (err: any) {
+      alert("Failed to delete listing: " + (err?.message || "Unknown error"));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Fetch listings and their requests from Supabase & local storage
   const loadSellerData = async (userId?: string) => {
@@ -590,7 +605,7 @@ function SellerHub() {
       setRequestsByListing(reqMap);
       localStorage.setItem("seller_requests_by_listing", JSON.stringify(reqMap));
     } catch (err) {
-      console.warn("Could not query listings from Supabase, using local state:", err);
+      console.error("Error loading seller listings/requests:", err);
       const localItems: any[] = JSON.parse(
         localStorage.getItem("seller_listings") ?? "[]"
       );
@@ -601,23 +616,48 @@ function SellerHub() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const uid = session?.user?.id;
       if (uid) {
         setSellerId(uid);
         loadSellerData(uid);
+
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("lat, long, address")
+          .eq("id", uid)
+          .maybeSingle();
+
+        if (userProfile?.address) setSellerAddress(userProfile.address);
+        if (userProfile?.lat) setSellerLat(Number(userProfile.lat));
+        if (userProfile?.long) setSellerLong(Number(userProfile.long));
       } else {
         loadSellerData();
       }
       const addr = session?.user?.user_metadata?.["address"] as string | undefined;
-      if (addr) setSellerAddress(addr);
+      if (addr && !sellerAddress) setSellerAddress(addr);
+      const mLat = session?.user?.user_metadata?.["lat"];
+      const mLong = session?.user?.user_metadata?.["long"];
+      if (mLat) setSellerLat(Number(mLat));
+      if (mLong) setSellerLong(Number(mLong));
     });
+
+    // Realtime channel for live requests updates (new reservations, approvals, buyer opt-outs)
+    const reqChannel = supabase
+      .channel("seller_requests_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "requests" }, () => {
+        loadSellerData();
+      })
+      .subscribe();
 
     // Auto-poll requests every 12 seconds so reservations sent by buyer branch appear dynamically
     const timer = setInterval(() => {
       loadSellerData();
     }, 12000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      supabase.removeChannel(reqChannel);
+    };
   }, [sellerId]);
 
   function handleField(
@@ -636,6 +676,14 @@ function SellerHub() {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user?.id || sellerId;
 
+    let pLat = sellerLat;
+    let pLong = sellerLong;
+    if (pLat == null || pLong == null) {
+      const geo = await geocodeAddress(sellerAddress || "DAIICT, Gandhinagar");
+      pLat = geo.lat;
+      pLong = geo.long;
+    }
+
     const payload = {
       ...form,
       contamination_pct: Number(form.contamination_pct),
@@ -643,8 +691,8 @@ function SellerHub() {
       list_price: Number(form.list_price),
       price_floor: Number(form.price_floor),
       pickup_address: sellerAddress || undefined,
-      pickup_lat: 12.9716,
-      pickup_long: 77.5946,
+      pickup_lat: pLat,
+      pickup_long: pLong,
       decay_window_seconds: 86400,
       status: "open",
     };
@@ -730,9 +778,14 @@ function SellerHub() {
     const targetListing = myListings.find((l) => l.id === listingId);
     const targetReq = (requestsByListing[listingId] ?? []).find((r) => r.id === requestId);
     const buyerId = targetReq?.buyer_id || targetReq?.buyer?.id || "2988f73a-313c-4a8b-8913-c423c87f11f3";
-    const buyerAddress = targetReq?.buyer?.address || "Hebbal Facility, Bengaluru";
-    const buyerLat = Number(targetReq?.buyer?.lat) || 13.0358;
-    const buyerLong = Number(targetReq?.buyer?.long) || 77.5972;
+    const buyerAddress = targetReq?.buyer?.address || targetReq?.buyer_name || "VR Mall, Surat";
+    let buyerLat = Number(targetReq?.buyer?.lat);
+    let buyerLong = Number(targetReq?.buyer?.long);
+    if (!buyerLat || !buyerLong || isNaN(buyerLat)) {
+      const bGeo = await geocodeAddress(buyerAddress);
+      buyerLat = bGeo.lat;
+      buyerLong = bGeo.long;
+    }
 
     const qtyKg = Number(targetListing?.quantity) || 1000;
     const co2eSaved = Math.round(qtyKg * 3.12 * 10) / 10;
@@ -742,9 +795,21 @@ function SellerHub() {
         ? targetListing.condition.split("Pickup: ")[1]?.replace(")", "")
         : "") ||
       sellerAddress ||
-      "DAIICT Facility";
-    const pickupLat = Number(targetListing?.pickup_lat) || 12.9716;
-    const pickupLong = Number(targetListing?.pickup_long) || 77.5946;
+      "DAIICT, Gandhinagar";
+
+    let pickupLat = Number(targetListing?.pickup_lat) || sellerLat;
+    let pickupLong = Number(targetListing?.pickup_long) || sellerLong;
+    if (!pickupLat || !pickupLong || isNaN(pickupLat)) {
+      const pGeo = await geocodeAddress(pickupLoc);
+      pickupLat = pGeo.lat;
+      pickupLong = pGeo.long;
+    }
+
+    const directDistance = haversine(pickupLat, pickupLong, buyerLat, buyerLong);
+    const roadKm = Math.max(1.2, Math.round(directDistance * 1.25 * 10) / 10);
+    const durationMins = Math.max(10, Math.round((roadKm / 45) * 60));
+    const dynamicFreight = Math.max(1200, Math.round(roadKm * 85 + (qtyKg / 1000) * 350));
+    const finalPayout = freightPayout && freightPayout !== 2850 ? freightPayout : dynamicFreight;
 
     if (status === "accepted" || status === "declined") {
       let apiSucceeded = false;
@@ -777,8 +842,8 @@ function SellerHub() {
                 request_id: requestId,
                 seller_id: uid,
                 buyer_id: buyerId,
-                distance_km: 18,
-                estimated_cost: freightPayout,
+                distance_km: roadKm,
+                estimated_cost: finalPayout,
                 status: "committed",
                 impact_kg_diverted: qtyKg,
                 impact_co2e_kg: co2eSaved,
@@ -794,9 +859,9 @@ function SellerHub() {
                 pickup_long: pickupLong,
                 dropoff_lat: buyerLat,
                 dropoff_long: buyerLong,
-                distance_km: 18,
-                duration_min: 38,
-                estimated_cost: freightPayout,
+                distance_km: roadKm,
+                duration_min: durationMins,
+                estimated_cost: finalPayout,
                 pickup_location: pickupLoc,
                 dropoff_location: buyerAddress,
                 status: "open",
@@ -819,7 +884,7 @@ function SellerHub() {
           id: requestId,
           listing_id: listingId,
           status,
-          freight_estimate: freightPayout,
+          freight_estimate: finalPayout,
         });
       }
       const newMap = { ...prev, [listingId]: updated };
@@ -846,11 +911,11 @@ function SellerHub() {
         id: jobId,
         transaction_id: `TX-${Date.now()}`,
         listing_id: listingId,
-        route: `${targetListing?.pickup_address || sellerAddress || "Peenya Industrial Area"} → Hoskote Facility`,
-        detail: `${targetListing?.quantity || 1400} ${targetListing?.unit || "kg"} · 23 km`,
-        payout: `₹${freightPayout.toLocaleString("en-IN")}`,
+        route: `${pickupLoc} → ${buyerAddress}`,
+        detail: `${targetListing?.quantity || 1400} ${targetListing?.unit || "kg"} · ${roadKm} km`,
+        payout: `₹${finalPayout.toLocaleString("en-IN")}`,
         status: "Open",
-        buyer: "EcoForm Packaging",
+        buyer: buyerAddress,
         material: `${targetListing?.material_type || "Material"} lot`,
         created_at: new Date().toISOString(),
       };
@@ -899,7 +964,7 @@ function SellerHub() {
 
       {/* ── Post new listing ── */}
       <div className="rounded-panel border-2 border-foreground/10 bg-card">
-        <div className="flex items-center justify-between p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5">
           <div>
             <h2 className="font-display text-xl font-semibold">
               Post a new listing
@@ -908,16 +973,29 @@ function SellerHub() {
               List reusable packaging for sale on the marketplace.
             </p>
           </div>
-          <button
-            onClick={() => {
-              setShowForm((v) => !v);
-              setSubmitMsg(null);
-            }}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-button transition-all hover:-translate-y-0.5"
-          >
-            {showForm ? <X className="size-4" /> : <Plus className="size-4" />}
-            {showForm ? "Cancel" : "New listing"}
-          </button>
+          <div className="flex items-center gap-2">
+            {onTabChange && (
+              <button
+                type="button"
+                onClick={() => onTabChange("earnings")}
+                className="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground/10 bg-background px-4 py-2 text-sm font-semibold text-foreground transition-all hover:border-primary hover:text-primary"
+                title="Calculate scrap batch yields & earnings"
+              >
+                <Calculator className="size-4 text-primary" />
+                <span>Wages Calculator</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setShowForm((v) => !v);
+                setSubmitMsg(null);
+              }}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-button transition-all hover:-translate-y-0.5"
+            >
+              {showForm ? <X className="size-4" /> : <Plus className="size-4" />}
+              {showForm ? "Cancel" : "New listing"}
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -1153,13 +1231,29 @@ function SellerHub() {
                         {item.quantity} {item.unit} · {item.pickup_address || (item.condition?.includes("Pickup: ") ? item.condition.split("Pickup: ")[1]?.replace(")", "") : "") || "DAIICT"} · {item.id}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-display text-3xl font-semibold">
-                        ₹{currentPrice.toFixed(2)}/{item.unit || "kg"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        floor ₹{Number(item.price_floor).toFixed(2)} · {decayPct}% decay · Bulk in {timing.timeTo80Formatted}
-                      </p>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="text-right">
+                        <p className="font-display text-3xl font-semibold">
+                          ₹{currentPrice.toFixed(2)}/{item.unit || "kg"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          floor ₹{Number(item.price_floor).toFixed(2)} · {decayPct}% decay · Bulk in {timing.timeTo80Formatted}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteListing(item.id)}
+                        disabled={deletingId === item.id}
+                        aria-label="Delete listing"
+                        title="Delete listing"
+                        className="grid size-8 place-items-center rounded-lg border border-destructive/25 bg-destructive/10 text-destructive transition-all duration-200 hover:-translate-y-0.5 hover:bg-destructive hover:text-white disabled:opacity-50 disabled:translate-y-0"
+                      >
+                        {deletingId === item.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                      </button>
                     </div>
                   </div>
 

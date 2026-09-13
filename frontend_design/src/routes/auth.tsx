@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { ArrowLeft, Loader2, Recycle, Truck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { geocodeAddress } from "../services/geocode";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -13,11 +14,49 @@ export const Route = createFileRoute("/auth")({
 
 type Tab = "signin" | "signup" | "forgot";
 
-// Roles that are treated as sellers and get routed to the seller portal
-const SELLER_ROLES = ["manufacturer", "retailer"];
-function sellerRedirect(role: string | undefined, fallback: string) {
-  if (role === "logistics") return "/dashboard/logistics";
-  return role && SELLER_ROLES.includes(role) ? "/seller" : fallback;
+// Explicit role-to-destination routing:
+// - Seller (manufacturer, retailer, seller) -> /seller (Seller Dashboard)
+// - Buyer (recycler, buyer) -> /marketplace (Marketplace)
+// - Logistics (logistics, carrier) -> /dashboard/logistics (Logistics Dashboard)
+export function getRoleRedirect(role: string | null | undefined, fallback = "/marketplace"): string {
+  if (!role) return fallback;
+  const r = role.toLowerCase().trim();
+  if (r === "manufacturer" || r === "retailer" || r === "seller") {
+    return "/seller";
+  }
+  if (r === "recycler" || r === "buyer") {
+    return "/marketplace";
+  }
+  if (r === "logistics" || r === "carrier") {
+    return "/dashboard/logistics";
+  }
+  return fallback;
+}
+
+async function resolveUserRole(session: { user?: { id?: string; user_metadata?: Record<string, unknown> } } | null): Promise<string | null> {
+  if (!session?.user) return null;
+
+  // 1. Check user_metadata first
+  const metaRole = session.user.user_metadata?.["role"];
+  if (typeof metaRole === "string" && metaRole.trim()) {
+    return metaRole.trim();
+  }
+
+  // 2. Query public.users table in Supabase
+  if (session.user.id) {
+    try {
+      const { data } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (data?.role) return data.role;
+    } catch (e) {
+      console.warn("Could not query role from users table:", e);
+    }
+  }
+
+  return null;
 }
 
 const INPUT =
@@ -60,10 +99,14 @@ function AuthPage() {
 
   // Handle Supabase OAuth callback — only redirect on explicit sign-in, not initial session restore
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session && event === "SIGNED_IN") {
-        const role = session.user.user_metadata?.["role"] as string | undefined;
-        navigate({ to: sellerRedirect(role, next) as any });
+        let userRole = (session.user.user_metadata?.["role"] as string | undefined) || null;
+        if (!userRole) {
+          userRole = await resolveUserRole(session);
+        }
+        const destination = getRoleRedirect(userRole, next);
+        navigate({ to: destination as any });
       }
     });
     return () => subscription.unsubscribe();
@@ -81,36 +124,50 @@ function AuthPage() {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
+      let userRole: string | null = (data.session?.user?.user_metadata?.["role"] as string | undefined) || null;
+
       // After sign-in, re-POST the profile so geocoding runs for users
       // who have null or stale coords (e.g. signed up before geocoder was added)
       if (data.session) {
         const token = data.session.access_token;
-        const profileRes = await fetch("/api/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (profileRes.ok) {
-          const profile = await profileRes.json() as { name?: string; role?: string; address?: string; lat?: number | null; long?: number | null };
-          // Re-POST with existing profile data — this triggers geocoding if address
-          // has changed or coords are missing (handled in me.ts)
-          if (profile.name && profile.role) {
-            await fetch("/api/users/me", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                name: profile.name,
-                role: profile.role,
-                address: profile.address ?? "",
-              }),
-            });
+        try {
+          const profileRes = await fetch("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (profileRes.ok) {
+            const profile = await profileRes.json() as { name?: string; role?: string; address?: string; lat?: number | null; long?: number | null };
+            if (profile.role) {
+              userRole = profile.role;
+            }
+            if (profile.name && profile.role) {
+              const geo = profile.address ? await geocodeAddress(profile.address) : null;
+              await fetch("/api/users/me", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  name: profile.name,
+                  role: profile.role,
+                  address: profile.address ?? "",
+                  lat: profile.lat ?? geo?.lat ?? null,
+                  long: profile.long ?? geo?.long ?? null,
+                }),
+              });
+            }
           }
+        } catch {
+          // ignore network error
+        }
+
+        if (!userRole) {
+          userRole = await resolveUserRole(data.session);
         }
       }
 
-      const role = data.session?.user?.user_metadata?.["role"] as string | undefined;
-      navigate({ to: sellerRedirect(role, next) as any });
+      const destination = getRoleRedirect(userRole, next);
+      navigate({ to: destination as any });
     } catch (err: unknown) {
       setMessage({ text: (err as Error).message, type: "error" });
     } finally {
@@ -148,19 +205,45 @@ function AuthPage() {
 
       // Create profile via API if session exists immediately (no email confirm required)
       if (data.session) {
-        const profileRes = await fetch("/api/users/me", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${data.session.access_token}`,
-          },
-          body: JSON.stringify({ name, role, address }),
-        });
-        if (!profileRes.ok) {
-          const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
-          console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
+        try {
+          const geo = address ? await geocodeAddress(address) : null;
+          const profileRes = await fetch("/api/users/me", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            body: JSON.stringify({
+              name,
+              role,
+              address,
+              lat: geo?.lat ?? null,
+              long: geo?.long ?? null,
+            }),
+          });
+          if (!profileRes.ok) {
+            const profileErr = await profileRes.json().catch(() => ({})) as Record<string, unknown>;
+            console.warn("Note: Profile API returned an error, but proceeding to UI.", profileErr);
+          }
+          if (data.session.user.id) {
+            try {
+              await supabase.from("users").upsert({
+                id: data.session.user.id,
+                name,
+                role,
+                address,
+                lat: geo?.lat ?? null,
+                long: geo?.long ?? null,
+              });
+            } catch {
+              // ignore
+            }
+          }
+        } catch (profileFetchErr) {
+          console.warn("Note: Could not reach profile API, proceeding to UI.", profileFetchErr);
         }
-        navigate({ to: sellerRedirect(role, next) as any });
+        const destination = getRoleRedirect(role, next);
+        navigate({ to: destination as any });
       } else {
         setMessage({ text: "Check your email to confirm your account.", type: "success" });
       }
@@ -214,7 +297,7 @@ function AuthPage() {
 
         {/* Brand Logo */}
         <div className="mb-8 flex justify-center">
-          <img src="/logo.png" alt="ReRoute" className="h-10 w-auto mix-blend-multiply" />
+          <img src="/logo.png" alt="ReRoute" className="h-14 w-auto mix-blend-multiply" />
         </div>
 
         <div className="overflow-hidden rounded-panel border-2 border-foreground/10 bg-card shadow-panel">

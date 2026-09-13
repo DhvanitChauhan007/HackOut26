@@ -139,27 +139,31 @@ function BulkLotsPage() {
         </div>
 
         {/* Right: Info panel */}
-        <div className="flex flex-col rounded-panel bg-foreground p-6 text-background">
-          <Recycle className="size-8 text-highlight" />
-          <h3 className="mt-4 font-display text-2xl font-semibold">Whichever resolves first wins.</h3>
-          <p className="mt-3 text-sm leading-relaxed text-background/65">
-            Each item keeps its recycler fallback clock while pooled. If the bulk lot sells first, a multi-stop job is created. If an item hits its deadline first, it exits the pool automatically.
-          </p>
+        <div className="flex flex-col justify-between rounded-panel bg-foreground p-6 text-background">
+          <div>
+            <Recycle className="size-8 text-highlight" />
+            <h3 className="mt-4 font-display text-2xl font-semibold">Whichever resolves first wins.</h3>
+            <p className="mt-3 text-sm leading-relaxed text-background/65">
+              Each item keeps its recycler fallback clock while pooled. If the bulk lot sells first, a multi-stop job is created. If an item hits its deadline first, it exits the pool automatically.
+            </p>
+          </div>
 
-          {lots.length > 0 && lots[0].bulk_lot_items?.length > 0 && (
-            <div className="mt-6 rounded-2xl bg-background/10 p-4">
-              <p className="text-xs uppercase text-background/55">Forming pool</p>
-              <p className="mt-1 font-semibold">{lots[0].sub_grade} {lots[0].material_type} · {lots[0].bulk_lot_items.length} of {lots[0].bulk_lot_items.length} lots</p>
-              <div className="mt-3 h-2 rounded-full bg-background/10">
-                <div className="h-full rounded-full bg-highlight" style={{ width: "100%" }} />
+          <div className="mt-6 flex flex-col gap-4">
+            {lots.length > 0 && lots[0].bulk_lot_items?.length > 0 && (
+              <div className="rounded-2xl bg-background/10 p-4 border border-white/5">
+                <p className="text-xs uppercase text-background/55">Forming pool</p>
+                <p className="mt-1 font-semibold">{lots[0].sub_grade} {lots[0].material_type} · {lots[0].bulk_lot_items.length} of {lots[0].bulk_lot_items.length} lots</p>
+                <div className="mt-3 h-2 rounded-full bg-background/10">
+                  <div className="h-full rounded-full bg-highlight" style={{ width: "100%" }} />
+                </div>
+                <p className="mt-2 text-xs text-background/50">{lots[0].total_quantity} kg ready for purchase</p>
               </div>
-              <p className="mt-2 text-xs text-background/50">{lots[0].total_quantity} kg ready for purchase</p>
-            </div>
-          )}
+            )}
 
-          <div className="mt-auto pt-6 rounded-2xl bg-background/10 p-4 text-sm">
-            <p className="font-semibold text-highlight">How bulk pricing works</p>
-            <p className="mt-1 text-background/65">Sellers opt in at near-floor prices. You get a flat bulk rate cheaper than buying individually. Logistics creates one multi-stop route.</p>
+            <div className="rounded-2xl bg-background/10 p-4 text-sm border border-white/5">
+              <p className="font-semibold text-highlight">How bulk pricing works</p>
+              <p className="mt-1 leading-relaxed text-background/65">Sellers opt in at near-floor prices. You get a flat bulk rate cheaper than buying individually. Logistics creates one multi-stop route.</p>
+            </div>
           </div>
         </div>
       </div>

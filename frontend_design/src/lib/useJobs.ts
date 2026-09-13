@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "./supabase";
+import { haversine } from "../services/haversine";
 
 export type JobStatus = "open" | "assigned" | "delivered";
 
@@ -12,15 +13,14 @@ export interface Job {
   estimated_cost: number;
   status: JobStatus;
   logistics_company_id: string | null;
-  // joined from transactions → listings
-  material_type?: string;
-  quantity_kg?: number;
-  pickup_lat?: number | null;
-  pickup_long?: number | null;
-  dropoff_lat?: number | null;
-  dropoff_long?: number | null;
-  created_at?: string | null;
-  delivered_at?: string | null;
+  material_type?: string | undefined;
+  quantity_kg?: number | undefined;
+  pickup_lat?: number | null | undefined;
+  pickup_long?: number | null | undefined;
+  dropoff_lat?: number | null | undefined;
+  dropoff_long?: number | null | undefined;
+  created_at?: string | null | undefined;
+  delivered_at?: string | null | undefined;
   // computed display fields
   route: string;
   detail: string;
@@ -44,7 +44,7 @@ export function useJobs(): UseJobsReturn {
 
   const formatJob = (raw: Record<string, unknown>): Job => {
     const cost = typeof raw["estimated_cost"] === "number" ? raw["estimated_cost"] : 0;
-    const km = typeof raw["distance_km"] === "number" ? raw["distance_km"] : 0;
+    let km = typeof raw["distance_km"] === "number" ? raw["distance_km"] : 0;
     const duration = typeof raw["duration_min"] === "number" ? raw["duration_min"] : null;
     const qty = typeof raw["quantity_kg"] === "number" ? raw["quantity_kg"] : 0;
     const pLat = typeof raw["pickup_lat"] === "number" ? raw["pickup_lat"] : null;
@@ -53,6 +53,11 @@ export function useJobs(): UseJobsReturn {
     const dLon = typeof raw["dropoff_long"] === "number" ? raw["dropoff_long"] : null;
     const delAt = typeof raw["delivered_at"] === "string" ? raw["delivered_at"] : null;
     const crAt = typeof raw["created_at"] === "string" ? raw["created_at"] : null;
+
+    if ((!km || km <= 0) && pLat != null && pLon != null && dLat != null && dLon != null) {
+      km = Math.max(1.2, Math.round(haversine(pLat, pLon, dLat, dLon) * 1.25 * 10) / 10);
+    }
+    const effectiveDuration = duration ?? (km > 0 ? Math.max(10, Math.round((km / 45) * 60)) : null);
     
     return {
       id: String(raw["id"] ?? ""),
@@ -65,7 +70,7 @@ export function useJobs(): UseJobsReturn {
       created_at: crAt,
       delivered_at: delAt,
       distance_km: km,
-      duration_min: duration,
+      duration_min: effectiveDuration,
       estimated_cost: cost,
       status: (raw["status"] as JobStatus) ?? "open",
       logistics_company_id: raw["logistics_company_id"] as string | null,
@@ -74,10 +79,10 @@ export function useJobs(): UseJobsReturn {
       route: `${raw["pickup_location"]} → ${raw["dropoff_location"]}`,
       detail: `${qty > 0 ? qty + " kg · " : ""}${km} km`,
       payout: `₹${cost.toLocaleString("en-IN")}`,
-      eta: duration
-        ? duration >= 60
-          ? `~${Math.floor(duration / 60)}h ${Math.round(duration % 60)}m`
-          : `~${Math.round(duration)} min`
+      eta: effectiveDuration
+        ? effectiveDuration >= 60
+          ? `~${Math.floor(effectiveDuration / 60)}h ${Math.round(effectiveDuration % 60)}m`
+          : `~${Math.round(effectiveDuration)} min`
         : "ETA unavailable",
     };
   };
@@ -193,7 +198,7 @@ export function useJobs(): UseJobsReturn {
 
     // Optimistically update local state; Realtime will confirm
     setJobs((prev) =>
-      prev.map((j) => (j.id === id ? { ...j, status: "assigned", logistics_company_id: logisticsId } : j))
+      prev.map((j) => (j.id === id ? { ...j, status: "assigned", logistics_company_id: logisticsId || null } : j))
     );
   }, []);
 

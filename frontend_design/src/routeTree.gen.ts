@@ -18,8 +18,9 @@ import { Route as DashboardWagesRouteImport } from './routes/dashboard/wages'
 import { Route as ImpactIndexRouteImport } from './routes/impact/index'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace/index'
 import { Route as MarketplaceBulkLotsRouteImport } from './routes/marketplace/bulk-lots'
-import { Route as DashboardMapIdRouteImport } from './routes/dashboard/map.$id'
+import { Route as ProfileIndexRouteImport } from './routes/profile/index'
 import { Route as SellerIndexRouteImport } from './routes/seller/index'
+import { Route as DashboardMapIdRouteImport } from './routes/dashboard/map.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -66,14 +67,19 @@ const MarketplaceBulkLotsRoute = MarketplaceBulkLotsRouteImport.update({
   path: '/marketplace/bulk-lots',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardMapIdRoute = DashboardMapIdRouteImport.update({
-  id: '/dashboard/map/$id',
-  path: '/dashboard/map/$id',
+const ProfileIndexRoute = ProfileIndexRouteImport.update({
+  id: '/profile/',
+  path: '/profile/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SellerIndexRoute = SellerIndexRouteImport.update({
   id: '/seller/',
   path: '/seller/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardMapIdRoute = DashboardMapIdRouteImport.update({
+  id: '/dashboard/map/$id',
+  path: '/dashboard/map/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -87,8 +93,9 @@ export interface FileRoutesByFullPath {
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact/': typeof ImpactIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
-  '/dashboard/map/$id': typeof DashboardMapIdRoute
+  '/profile/': typeof ProfileIndexRoute
   '/seller/': typeof SellerIndexRoute
+  '/dashboard/map/$id': typeof DashboardMapIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -100,8 +107,9 @@ export interface FileRoutesByTo {
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact': typeof ImpactIndexRoute
   '/marketplace': typeof MarketplaceIndexRoute
-  '/dashboard/map/$id': typeof DashboardMapIdRoute
+  '/profile': typeof ProfileIndexRoute
   '/seller': typeof SellerIndexRoute
+  '/dashboard/map/$id': typeof DashboardMapIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -114,8 +122,9 @@ export interface FileRoutesById {
   '/marketplace/bulk-lots': typeof MarketplaceBulkLotsRoute
   '/impact/': typeof ImpactIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
-  '/dashboard/map/$id': typeof DashboardMapIdRoute
+  '/profile/': typeof ProfileIndexRoute
   '/seller/': typeof SellerIndexRoute
+  '/dashboard/map/$id': typeof DashboardMapIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -129,8 +138,9 @@ export interface FileRouteTypes {
     | '/marketplace/bulk-lots'
     | '/impact/'
     | '/marketplace/'
-    | '/dashboard/map/$id'
+    | '/profile/'
     | '/seller/'
+    | '/dashboard/map/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -142,8 +152,9 @@ export interface FileRouteTypes {
     | '/marketplace/bulk-lots'
     | '/impact'
     | '/marketplace'
-    | '/dashboard/map/$id'
+    | '/profile'
     | '/seller'
+    | '/dashboard/map/$id'
   id:
     | '__root__'
     | '/'
@@ -155,8 +166,9 @@ export interface FileRouteTypes {
     | '/marketplace/bulk-lots'
     | '/impact/'
     | '/marketplace/'
-    | '/dashboard/map/$id'
+    | '/profile/'
     | '/seller/'
+    | '/dashboard/map/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -169,8 +181,9 @@ export interface RootRouteChildren {
   MarketplaceBulkLotsRoute: typeof MarketplaceBulkLotsRoute
   ImpactIndexRoute: typeof ImpactIndexRoute
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
-  DashboardMapIdRoute: typeof DashboardMapIdRoute
+  ProfileIndexRoute: typeof ProfileIndexRoute
   SellerIndexRoute: typeof SellerIndexRoute
+  DashboardMapIdRoute: typeof DashboardMapIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -238,11 +251,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceBulkLotsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/map/$id': {
-      id: '/dashboard/map/$id'
-      path: '/dashboard/map/$id'
-      fullPath: '/dashboard/map/$id'
-      preLoaderRoute: typeof DashboardMapIdRouteImport
+    '/profile/': {
+      id: '/profile/'
+      path: '/profile'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof ProfileIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/seller/': {
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       path: '/seller'
       fullPath: '/seller/'
       preLoaderRoute: typeof SellerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/map/$id': {
+      id: '/dashboard/map/$id'
+      path: '/dashboard/map/$id'
+      fullPath: '/dashboard/map/$id'
+      preLoaderRoute: typeof DashboardMapIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -265,8 +285,9 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceBulkLotsRoute: MarketplaceBulkLotsRoute,
   ImpactIndexRoute: ImpactIndexRoute,
   MarketplaceIndexRoute: MarketplaceIndexRoute,
-  DashboardMapIdRoute: DashboardMapIdRoute,
+  ProfileIndexRoute: ProfileIndexRoute,
   SellerIndexRoute: SellerIndexRoute,
+  DashboardMapIdRoute: DashboardMapIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -99,8 +99,8 @@ export async function acceptRequest(
       .eq("id", listing.seller_id)
       .single();
 
-    const pickupLat = (listing.pickup_lat as number | null) ?? seller?.lat ?? null;
-    const pickupLong = (listing.pickup_long as number | null) ?? seller?.long ?? null;
+    const pickupLat = (listing["pickup_lat"] as number | null) ?? seller?.lat ?? null;
+    const pickupLong = (listing["pickup_long"] as number | null) ?? seller?.long ?? null;
     const dropoffLat = buyer?.lat as number | null;
     const dropoffLong = buyer?.long as number | null;
 
@@ -118,7 +118,7 @@ export async function acceptRequest(
         .eq("id", txId);
 
       // Step C: Derive location labels (prefer human-readable addresses)
-      const pickupLocation = (listing.address as string | null)
+      const pickupLocation = (listing["address"] as string | null)
         ?? (seller?.address as string | null)
         ?? `${pickupLat}, ${pickupLong}`;
       const dropoffLocation = (buyer?.address as string | null)

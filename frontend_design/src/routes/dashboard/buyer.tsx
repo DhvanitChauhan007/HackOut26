@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { haversine } from "../../services/haversine";
 import {
   ArrowRight,
   Box,
@@ -17,6 +18,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Star,
+  Trash2,
   Truck,
   X,
 } from "lucide-react";
@@ -105,6 +107,35 @@ function RequestsPage() {
     data: any;
   } | null>(null);
   const [ratingModalItem, setRatingModalItem] = useState<any | null>(null);
+  const [deletingReqId, setDeletingReqId] = useState<string | null>(null);
+
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!window.confirm("Are you sure you want to cancel and delete this reservation request?")) {
+      return;
+    }
+    setDeletingReqId(requestId);
+    try {
+      // 1. Server API endpoint
+      try {
+        await apiRequest(`/api/requests/${requestId}`, { method: "DELETE" });
+      } catch (apiErr) {
+        console.warn("API delete request failed, falling back to direct Supabase:", apiErr);
+      }
+
+      // 2. Direct Supabase delete fallback
+      await supabase.from("requests").delete().eq("id", requestId);
+
+      // 3. Update local state immediately
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      if (selectedItem?.data?.id === requestId) {
+        setSelectedItem(null);
+      }
+    } catch (err: any) {
+      alert("Failed to delete request: " + (err?.message || "Unknown error"));
+    } finally {
+      setDeletingReqId(null);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -398,6 +429,8 @@ function RequestsPage() {
                   onView={() =>
                     setSelectedItem({ type: "request", data: req })
                   }
+                  onDelete={() => handleDeleteRequest(req.id)}
+                  isDeleting={deletingReqId === req.id}
                 />
               ))}
             </div>
@@ -455,6 +488,8 @@ function RequestsPage() {
             setSelectedItem(null);
             setRatingModalItem(t);
           }}
+          onDeleteRequest={(id) => handleDeleteRequest(id)}
+          isDeletingRequest={deletingReqId === selectedItem.data?.id}
         />
       )}
 
@@ -529,9 +564,20 @@ function TabButton({
   );
 }
 
-function RequestCard({ req, onView }: { req: any; onView: () => void }) {
+function RequestCard({
+  req,
+  onView,
+  onDelete,
+  isDeleting,
+}: {
+  req: any;
+  onView: () => void;
+  onDelete?: () => void;
+  isDeleting?: boolean;
+}) {
   const listing = req.listings;
   const seller = listing?.users;
+  const isPending = req.status === "pending";
 
   return (
     <article className="flex flex-col justify-between rounded-card border-2 border-foreground/10 bg-card p-5 shadow-sm transition-all hover:border-foreground/20 hover:shadow-md">
@@ -601,12 +647,29 @@ function RequestCard({ req, onView }: { req: any; onView: () => void }) {
         <span className="text-muted-foreground text-[11px]">
           Requested {new Date(req.created_at).toLocaleDateString()}
         </span>
-        <button
-          onClick={onView}
-          className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
-        >
-          <Eye className="size-3.5" /> View Details
-        </button>
+        <div className="flex items-center gap-3">
+          {isPending && onDelete && (
+            <button
+              onClick={onDelete}
+              disabled={isDeleting}
+              title="Cancel and delete this pending reservation"
+              className="inline-flex items-center gap-1 font-semibold text-destructive transition-colors hover:text-destructive/80 hover:underline disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <RefreshCw className="size-3 animate-spin" />
+              ) : (
+                <Trash2 className="size-3" />
+              )}
+              Opt out
+            </button>
+          )}
+          <button
+            onClick={onView}
+            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
+          >
+            <Eye className="size-3.5" /> View Details
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -625,6 +688,17 @@ function TransactionCard({
   const seller = trx.seller || listing?.users;
   const job = trx.jobs?.[0];
   const isCompleted = trx.status === "completed";
+
+  const pLat = Number(job?.pickup_lat || listing?.pickup_lat || seller?.lat);
+  const pLong = Number(job?.pickup_long || listing?.pickup_long || seller?.long);
+  const dLat = Number(job?.dropoff_lat);
+  const dLong = Number(job?.dropoff_long);
+
+  const dynamicKm = (pLat && pLong && dLat && dLong)
+    ? Math.max(1.2, Math.round(haversine(pLat, pLong, dLat, dLong) * 1.25 * 10) / 10)
+    : null;
+
+  const displayDistance = trx.distance_km || job?.distance_km || dynamicKm || 12.5;
 
   return (
     <article className="flex flex-col justify-between rounded-card border-2 border-foreground/10 bg-card p-5 shadow-sm transition-all hover:border-foreground/20 hover:shadow-md">
@@ -677,7 +751,7 @@ function TransactionCard({
             </span>
           </div>
           <div className="mt-2 flex items-center justify-between border-t border-foreground/5 pt-2 text-[11px] text-muted-foreground">
-            <span>Distance: <strong>{trx.distance_km || job?.distance_km || 15} km</strong></span>
+            <span>Distance: <strong>{displayDistance} km</strong></span>
             {trx.duration_min && <span>ETA: <strong>~{trx.duration_min} mins</strong></span>}
             <span>Freight: <strong>₹{Number(trx.estimated_cost || 0).toFixed(0)}</strong></span>
           </div>
@@ -750,10 +824,14 @@ function DetailDialog({
   item,
   onClose,
   onRate,
+  onDeleteRequest,
+  isDeletingRequest,
 }: {
   item: { type: "request" | "transaction"; data: any };
   onClose: () => void;
   onRate: () => void;
+  onDeleteRequest?: (id: string) => void;
+  isDeletingRequest?: boolean;
 }) {
   const d = item.data;
   const isTrx = item.type === "transaction";
@@ -874,7 +952,21 @@ function DetailDialog({
         </div>
 
         {/* Actions */}
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-wrap gap-3">
+          {!isTrx && d.status === "pending" && onDeleteRequest && (
+            <button
+              onClick={() => onDeleteRequest(d.id)}
+              disabled={isDeletingRequest}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 py-2.5 text-xs font-semibold text-destructive transition-all hover:bg-destructive hover:text-white disabled:opacity-50"
+            >
+              {isDeletingRequest ? (
+                <RefreshCw className="size-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="size-3.5" />
+              )}
+              Opt out &amp; Delete request
+            </button>
+          )}
           {isTrx && d.status === "completed" && (
             <button
               onClick={onRate}
