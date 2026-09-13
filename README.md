@@ -1,179 +1,95 @@
-# ReRoute
+# Circular Packaging & Materials Exchange
 
-**Where does your packaging waste go?**
+**Theme:** Circular Carbon Ecosystem — HackOut'26
+**Team:** SegFaults
 
-ReRoute is a B2B circular packaging & materials exchange — a marketplace that connects manufacturers and retailers who generate surplus packaging waste with recyclers and processors who need it, plus a logistics layer to actually move the material.
+A B2B marketplace that connects waste generators, material buyers, and logistics companies to divert packaging waste (cardboard, plastics, pallets) from landfill — turning a disposal cost into a revenue stream and a supply source.
 
-Built by **Team SegFaults** for **Hackout '26** (Theme: Circular Carbon Ecosystem).
-
----
-
-## Official Problem Statement
-
-> Manufacturing and retail industries generate large volumes of packaging waste, much of which could be reused or recycled if better matched between businesses. This problem involves building a B2B exchange platform where companies can list surplus or recyclable packaging materials (cardboard, plastics, pallets) for other businesses to claim or purchase, reducing landfill waste and virgin material use.
-
-**Users:** Manufacturers, retailers, packaging recyclers, logistics companies.
-
-**Impact:**
-- Reduces packaging waste sent to landfill
-- Lowers material costs for businesses adopting recycled inputs
-- Cuts embodied carbon associated with virgin material production
+🔗 **Live demo:** [segfaultshackout26-git-main-hetalpa21s-projects.vercel.app](https://segfaultshackout26-git-main-hetalpa21s-projects.vercel.app/)
 
 ---
 
-## What's Built
+## The Problem
 
-ReRoute has three role-based dashboards, all live in the prototype:
+Manufacturing and retail generate large volumes of packaging waste with no efficient way to connect the businesses that have it with the businesses that want it. The result: reusable material goes to landfill, sellers pay disposal fees, and buyers miss out on cheaper recycled sourcing — all because there's no shared marketplace or logistics layer tying the two sides together.
 
-### Seller Hub
-- Post and manage material listings (type, grade, quantity, price)
-- Track incoming buyer requests through approval and dispatch
-- **Price decay & fallback clocks** — listings decay toward a floor price over time; at 80% decay they automatically join a nearby bulk pool, and at the floor a fixed recycler takes over automatically, so sellers always have a guaranteed exit path
-- Wages & Earnings dashboard — real-time settlement ledger (today's/monthly/lifetime earnings, revenue by material)
+## Who It's For
 
-### Marketplace (Buyer)
-- Browse and filter live lots by material, grade, quantity, and pickup radius
-- **Bulk Material Pools** — near-floor listings from multiple sellers automatically combine into one purchasable lot at a flat bulk rate; buying one triggers a single multi-stop logistics route across all contributing sellers
-- **Requests & Exchange Orders** — track reservations, active shipments, and verified landfill diversion impact in real time
-- Escrow-backed settlement — funds release once delivery is confirmed
+| Role | What they get |
+|---|---|
+| **Waste Generators** (manufacturers, retailers, brands) | Lower disposal costs, a channel to sell material that would otherwise be landfilled |
+| **Material Buyers** (processors, packagers, recyclers) | Consistent, filterable supply without chasing fragmented sources |
+| **Logistics Companies** | A live job board of pickup/delivery jobs they can claim, priced by distance |
 
-### Logistics
-- Centralized job board: Available / Assigned / In Transit / Delivered
-- Each job shows route, distance, estimated duration, and carrier payout
-- Multi-seller waypoint routing for consolidated bulk-pool pickups
-- Wages & Payouts dashboard — earnings by route tier (local vs. long-haul)
+## How It Works
 
-### Circular Impact
-- CO2e avoided (EPA WARM emission factors), kg diverted from landfill, combined cost savings
-- Network-wide stats: waste generators, buyers, logistics partners, completed exchanges
+**List → Match & Request → Estimate & Commit → Job Board Routing → Logistics Assignment → Delivered**
 
----
+1. **List** — A seller posts a material listing: type, sub-grade, contamination %, quantity, condition photo, and pickup location.
+2. **Match & Request** — Buyers filter listings by category and distance, then send a claim request. The seller accepts or declines; accepting locks the listing to prevent double-booking.
+3. **Estimate & Commit** — A distance-based cost is calculated and shown before either side commits.
+4. **Job Board Routing** — Once committed, the transaction becomes an open job visible to logistics companies, sorted by proximity.
+5. **Logistics Assignment** — A logistics company claims the job from its dashboard; both buyer and seller are notified in real time.
+6. **Delivered** — The logistics company marks the job delivered, closing the loop and logging the diverted volume and estimated CO2e avoided to an impact dashboard.
+
+### Price Decay & Recycler Fallback
+
+Unsold listings don't just sit indefinitely — their price decays linearly from the list price toward a floor price over a set window. As a listing nears its floor, it becomes eligible to join a bulk lot with other near-floor listings of the same material and grade, letting a buyer purchase them together in one multi-stop pickup. If a listing hits its floor without selling (alone or as part of a lot), it automatically routes to a fixed fallback recycler, guaranteeing every listing eventually gets diverted from landfill rather than expiring unresolved.
+
+### Impact Tracking
+
+Every completed delivery logs:
+- **Environmental impact** — estimated CO2e avoided (via EPA WARM emission-factor lookups per material type)
+- **Economic impact** — disposal cost avoided for the seller and material cost saved for the buyer, where pricing exists
+- **Circular economy impact** — cumulative kilograms diverted from landfill over time
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 19, TanStack Start / TanStack Router, Vite, Tailwind CSS v4 |
-| UI Components | Radix UI (shadcn-style), Recharts, Leaflet / react-leaflet |
-| Backend | Node.js, Express 5 |
-| Database & Auth | Supabase |
-| Geocoding | OpenStreetMap Nominatim (free, cached in `geocode_cache`) |
-| Distance / ETA | Free OSRM road-network routing by default, with an optional Google Distance Matrix upgrade path (used automatically if a key is configured), and a straight-line (haversine) estimate as a last-resort fallback |
+| Frontend | React + Tailwind CSS |
+| Backend | Node.js + Express |
+| Database & Auth | Supabase (Postgres + built-in Auth + Realtime) |
+| File Storage | Supabase Storage (listing condition photos) |
+| Maps & Distance | Google Maps Distance Matrix API, with a free OSRM/haversine fallback for offline-safe estimates |
+| Notifications | Supabase Realtime subscriptions (no polling) |
+| Deployment | Docker containerization; frontend deployed on Vercel |
 
-The routing stack is deliberately keyless-first: the whole distance/ETA pipeline works out of the box with no paid API keys, and results are cached to avoid rate limits.
-
----
-
-## Repo Structure
+## Repository Structure
 
 ```
 HackOut26/
-├── backend/            # Express API (Node.js)
-│   ├── routes/         # sharedRoutes, buyerRoutes, etc.
-│   ├── services/       # geocode, distance matrix, pricing logic
-│   └── index.js        # entry point (port 4000 by default)
-├── frontend_design/    # React + TanStack Start app
-│   └── src/
-│       ├── routes/     # seller, buyer, logistics dashboards
-│       ├── services/   # geocode.ts, distanceMatrix.ts
-│       └── lib/
-└── package.json        # monorepo root scripts
+├── backend/            # Node.js + Express API, Supabase integration
+├── frontend_design/    # React + Tailwind CSS frontend
+├── circular_packaging_exchange_plan.md      # Product plan: users, data model, MVP scope
+├── address-distance-rate-eta-workflow.md    # Distance/rate/ETA implementation workflow
+├── antigravity_backend_prompt.md
+├── antigravity_frontend_prompt.md
+└── package.json        # Monorepo root scripts (runs backend + frontend together)
 ```
+
+## Key Features (MVP)
+
+- Company signup/login with role selection (manufacturer, retailer, recycler, logistics)
+- Create, browse, and filter listings by material, sub-grade, distance, and quantity
+- Request → accept/decline workflow with listing locks to prevent double-booking
+- Distance-based cost estimation via Google Maps Distance Matrix, with caching
+- Logistics dashboard: proximity-sorted open jobs → claim → mark delivered, with live ETA
+- Real-time in-app notifications at job assignment and delivery
+- Impact dashboard: kilograms diverted, estimated CO2e avoided, and cost savings
+- Condition photo upload for listings
+- Price decay with automatic fixed-recycler fallback for unsold listings
+- Cross-seller bulk batching for stale, near-floor listings
+- Two-way buyer ↔ seller ratings, shown as a trust signal on profiles and listings
+
+## Stretch Goals (Not in MVP)
+
+- In-app negotiation/chat between buyers and sellers
+- Full multi-stop route optimization (VRP-style) for logistics, beyond proximity sorting
+- Regulated-material compliance flags
+- Photo-based automated condition verification (computer vision)
+- Gamified badges for consistent diverters
 
 ---
 
-## Getting Started
-
-### Prerequisites
-- Node.js (LTS recommended)
-- A [Supabase](https://supabase.com) project (URL + anon key + service role key)
-
-### Install
-
-```bash
-npm run install:all
-```
-
-This installs the root, `backend`, and `frontend_design` dependencies in one go.
-
-### Environment Variables
-
-Create a `.env` file in `frontend_design/` (and mirror the server-only values in `backend/` as needed):
-
-```env
-# Public (exposed to browser via VITE_ prefix)
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-
-# Server-only (NEVER exposed to browser)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# Pricing / Decay (all have sensible defaults — only override if needed)
-COST_PER_KM=0.75
-DECAY_WINDOW_SECONDS=604800
-DECAY_FLOOR_PCT=0.4
-RECYCLER_FALLBACK_TIMEOUT_SECONDS=172800
-
-# Bulk Batching
-BATCH_ELIGIBLE_DECAY_PCT=0.8
-BATCH_MATCH_RADIUS_KM=50
-BATCH_MIN_ITEMS=2
-BATCH_MAX_ITEMS=10
-BATCH_FORMING_TIMEOUT_SECONDS=259200
-```
-
-### Run in development
-
-```bash
-npm run dev
-```
-
-This runs the backend (`http://localhost:4000`) and frontend (Vite dev server) concurrently.
-
-Or run them separately:
-
-```bash
-npm run dev:backend
-npm run dev:frontend
-```
-
-### Build for production
-
-```bash
-npm run build
-```
-
-### Health check
-
-Once the backend is running:
-
-```
-GET http://localhost:4000/api/health
-```
-
----
-
-## Database
-
-Core Supabase tables:
-
-- **users** — company profiles with role: manufacturer, retailer, recycler, or logistics
-- **listings** — material inventory (type, grade, contamination %, quantity, price)
-- **jobs** — logistics tasks with pickup/dropoff locations and status tracking
-- **distance_cache** / **geocode_cache** — cached lookups to minimize external API calls and reduce latency
-
----
-
-## Team
-
-**SegFaults** — Hackout '26
-
-## Contributions
-
-| Contributor | Focus |
-|---|---|
-| Het Thakkar | Buyer's Dashboard |
-| Dhvanit Chauhan | Seller's Dashboard |
-| Manav Chauhan | Logistics Dashboard |
-| Krishiv Sheth | Base + Research + PPT |
+Built by **Team SegFaults** for HackOut'26.
