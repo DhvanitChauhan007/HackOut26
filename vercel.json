@@ -1,6 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm --prefix frontend_design install && npm --prefix frontend_design run build",
-  "outputDirectory": "frontend_design/.output/public",
-  "framework": null
+  "buildCommand": "node scripts/build-vercel.mjs"
 }
