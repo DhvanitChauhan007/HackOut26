@@ -187,9 +187,29 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
             const map: Record<string, string> = {};
             data.forEach((r: any) => { map[r.listing_id] = r.status ?? "pending"; });
             setRequested(map);
+            return;
           }
         }
       } catch {}
+
+      // Direct Supabase fallback (when backend proxy is not reachable, e.g. on Vercel)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const uid = session?.user?.id;
+        if (uid) {
+          const { data } = await supabase
+            .from("requests")
+            .select("listing_id, status")
+            .eq("buyer_id", uid);
+          if (data) {
+            const map: Record<string, string> = {};
+            data.forEach((r: any) => { map[r.listing_id] = r.status ?? "pending"; });
+            setRequested(map);
+          }
+        }
+      } catch (sbErr) {
+        console.warn("Direct Supabase loadRequests failed:", sbErr);
+      }
     };
     loadRequests();
 
@@ -292,18 +312,57 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
     if (!window.confirm("Are you okay with price?")) {
       return;
     }
+
+    // Ensure user is signed in
+    const { data: { session } } = await supabase.auth.getSession();
+    const buyerId = session?.user?.id;
+    if (!buyerId) {
+      alert("Please sign in as a buyer to reserve lots.");
+      return;
+    }
+
     try {
-      const res = await apiRequest(`/api/listings/${id}/requests`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        setRequested((prev) => ({ ...prev, [id]: "pending" }));
-      } else {
-        const err = await res.json();
-        alert("Failed to send request: " + (err.error || "Unknown error"));
+      // 1. Try Express backend API first
+      try {
+        const res = await apiRequest(`/api/listings/${id}/requests`, {
+          method: "POST",
+        });
+        if (res.ok) {
+          setRequested((prev) => ({ ...prev, [id]: "pending" }));
+          return;
+        }
+      } catch (apiErr) {
+        console.warn("Backend API unreachable, falling back to direct Supabase insert:", apiErr);
       }
-    } catch {
-      alert("Failed to connect to server. Please try again.");
+
+      // 2. Direct Supabase fallback (for Vercel deployment where Express backend is not hosted)
+      const { data: existing } = await supabase
+        .from("requests")
+        .select("id, status")
+        .eq("listing_id", id)
+        .eq("buyer_id", buyerId)
+        .maybeSingle();
+
+      if (existing) {
+        setRequested((prev) => ({ ...prev, [id]: existing.status ?? "pending" }));
+        return;
+      }
+
+      const { error } = await supabase
+        .from("requests")
+        .insert({
+          listing_id: id,
+          buyer_id: buyerId,
+          status: "pending",
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setRequested((prev) => ({ ...prev, [id]: "pending" }));
+    } catch (err: any) {
+      alert("Failed to send request: " + (err?.message || "Unknown error"));
     }
   };
 
