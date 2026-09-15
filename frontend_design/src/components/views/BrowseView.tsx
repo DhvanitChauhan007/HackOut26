@@ -308,37 +308,53 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
+      {/* Location / GPS bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-foreground/10 bg-card/70 px-3.5 py-2.5 text-xs">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <MapPin className="size-3.5 text-primary shrink-0" />
+          <span className="text-muted-foreground">Browsing from:</span>
+          <span className="font-semibold text-foreground truncate max-w-[180px] sm:max-w-xs">{locationLabel}</span>
+        </div>
+        <button
+          type="button"
+          onClick={detectDeviceLocation}
+          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline shrink-0"
+        >
+          <Navigation className="size-3" /> Update GPS
+        </button>
+      </div>
+
       <section className="grid gap-4 lg:grid-cols-12 sm:gap-6">
-        <div className="relative flex flex-col overflow-hidden rounded-panel bg-gradient-to-br from-primary via-primary/95 to-primary/85 p-6 text-primary-foreground shadow-panel lg:col-span-7 sm:p-10">
+        <div className="relative flex flex-col overflow-hidden rounded-panel bg-gradient-to-br from-primary via-primary/95 to-primary/85 p-5 text-primary-foreground shadow-panel lg:col-span-7 sm:p-8 lg:p-10">
           <div className="absolute -right-20 -top-20 size-72 rounded-full bg-primary/20 blur-3xl" />
           <div className="relative z-10 max-w-xl flex-1">
-            <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:mt-5 sm:text-4xl lg:text-5xl">
               Industrial scrap marketplace
             </h1>
-            <p className="mt-4 text-base text-primary-foreground/80 sm:text-lg">
+            <p className="mt-2.5 text-sm text-primary-foreground/80 sm:mt-4 sm:text-base lg:text-lg">
               Source verified secondary materials directly from manufacturing lines. Dynamic pricing with automatic road logistics routing.
             </p>
           </div>
-          <div className="relative z-10 mt-10 grid grid-cols-3 gap-3">
+          <div className="relative z-10 mt-6 grid grid-cols-3 gap-2 sm:mt-10 sm:gap-3">
             <Metric value="100% Live" label="Verified Supabase sync" />
             <Metric value="Automated" label="Escrow-backed dispatch" />
             <Metric value="Dynamic" label="Real-time decay pricing" />
           </div>
         </div>
 
-        <div className="rounded-panel border-2 border-foreground/10 bg-card p-5 lg:col-span-5 sm:p-6">
+        <div className="rounded-panel border-2 border-foreground/10 bg-card p-4 sm:p-6 lg:col-span-5">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl font-semibold">Filter the feed</h2>
-            <Search className="size-5 text-muted-foreground" />
+            <h2 className="font-display text-xl sm:text-2xl font-semibold">Filter the feed</h2>
+            <Search className="size-4 text-muted-foreground sm:size-5" />
           </div>
-          <div className="mt-5 space-y-4">
+          <div className="mt-4 space-y-4 sm:mt-5">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search material, grade, condition…"
+                placeholder="Search materials, grades…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-xl border-2 border-foreground/10 bg-background py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none transition-colors"
@@ -356,13 +372,13 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
             {/* Material */}
             <div>
               <p className="text-xs font-semibold uppercase text-muted-foreground">Material</p>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-1 no-scrollbar sm:flex-wrap">
                 {["All", "Cardboard", "Plastic", "Pallets"].map((item) => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => setMaterial(item)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    className={`rounded-full px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors shrink-0 ${
                       material === item ? "bg-foreground text-background" : "bg-foreground/5 hover:bg-foreground/10"
                     }`}
                   >
@@ -379,7 +395,7 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
                 <select
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
-                  className="mt-2 w-full rounded-xl border-2 border-foreground/10 bg-background px-3 py-2.5 text-sm text-foreground"
+                  className="mt-2 w-full rounded-xl border-2 border-foreground/10 bg-background px-2.5 py-2.5 text-xs sm:text-sm text-foreground"
                 >
                   <option value="Any grade">Any grade</option>
                   <option value="Grade A">Grade A</option>
@@ -395,7 +411,7 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
                     const num = parseInt(e.target.value.replace(/\D/g, ""), 10);
                     setMinQty(isNaN(num) ? 0 : num);
                   }}
-                  className="mt-2 w-full rounded-xl border-2 border-foreground/10 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground"
+                  className="mt-2 w-full rounded-xl border-2 border-foreground/10 bg-background px-2.5 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground"
                 />
               </label>
             </div>
@@ -417,14 +433,23 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
               />
             </div>
 
-            <div className="rounded-2xl bg-secondary p-3 text-sm">
-              <strong>{filtered.length} matching lots</strong>
-              <p className="mt-0.5 text-xs text-muted-foreground">Filtered by material &amp; specs</p>
+            <div className="flex items-center justify-between rounded-xl sm:rounded-2xl bg-secondary p-3 text-sm">
+              <div>
+                <strong className="block text-xs sm:text-sm">{filtered.length} matching lots</strong>
+                <p className="text-[11px] text-muted-foreground">Filtered by material &amp; specs</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => document.getElementById("lots")?.scrollIntoView({ behavior: "smooth" })}
+                className="rounded-full bg-accent px-3 py-1.5 font-display text-xs font-semibold text-accent-foreground shadow-button-accent sm:hidden"
+              >
+                View lots ↓
+              </button>
             </div>
             <button
               type="button"
               onClick={() => document.getElementById("lots")?.scrollIntoView({ behavior: "smooth" })}
-              className="w-full rounded-full bg-accent py-3 font-display font-semibold text-accent-foreground shadow-button-accent"
+              className="hidden sm:block w-full rounded-full bg-accent py-3 font-display font-semibold text-accent-foreground shadow-button-accent"
             >
               Show available lots
             </button>
@@ -433,10 +458,10 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
       </section>
 
       <section id="lots" className="scroll-mt-[4.5rem] rounded-panel bg-card/55 px-3 py-5 sm:px-5 sm:py-6">
-        <div className="mb-5">
-          <h2 className="font-display text-3xl font-semibold">Live lots on network</h2>
+        <div className="mb-4 sm:mb-5">
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold">Live lots on network</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
           {loading ? (
             <p className="col-span-4 p-4 text-center text-muted-foreground">Loading live listings...</p>
           ) : (
@@ -482,49 +507,168 @@ export function BrowseView({ readOnly = false }: { readOnly?: boolean } = {}) {
 }
 
 // Subcomponents
-function Metric({ value, label }: { value: string; label: string }) { return <div className="rounded-2xl bg-primary-foreground/10 p-4 sm:p-5"><p className="font-display text-xl font-semibold sm:text-2xl lg:text-3xl">{value}</p><p className="mt-1.5 text-xs text-primary-foreground/65 sm:text-sm">{label}</p></div>; }
-
-function ListingCard({ item, requestStatus, onView, onRequest, readOnly }: { item: Listing; requestStatus?: string | undefined; onView: () => void; onRequest: () => void | Promise<void>; readOnly?: boolean }) {
-  return <article className="flex min-h-[390px] flex-col rounded-card border border-foreground/10 bg-card p-3 transition-transform hover:-translate-y-1">
-    <div className="flex items-center justify-between gap-2 px-0.5 pb-2"><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase text-primary">{item.material_type}</span><span className="font-display text-xl font-semibold text-primary">₹{Number(item.current_price || item.list_price).toFixed(2)}<span className="text-[10px] font-normal text-muted-foreground">/{item.unit}</span></span></div>
-    <div className="relative overflow-hidden rounded-lg">
-      <img src={item.photo_url || "/images/cardboard-bales.jpg"} alt={`${item.sub_grade} inventory`} loading="lazy" width={1024} height={640} className="aspect-[16/9] w-full object-cover" />
-      <span className="absolute bottom-2 left-2 rounded bg-card/90 px-2 py-1 font-mono text-[10px] font-semibold shadow-sm">Lot #{item.id.slice(0, 6)}</span>
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="min-w-0 rounded-xl bg-primary-foreground/10 p-2.5 sm:p-4 text-center sm:text-left">
+      <p className="font-display text-sm font-semibold truncate sm:text-2xl lg:text-3xl">{value}</p>
+      <p className="mt-1 text-[10px] leading-tight text-primary-foreground/75 sm:text-xs sm:mt-1.5">{label}</p>
     </div>
-    <button onClick={onView} className="mt-3 text-left"><h3 className="font-display text-base font-semibold leading-tight">{item.sub_grade}</h3><p className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.users?.name}</p></button>
-    <dl className="mt-3 space-y-1.5 text-[11px]">
-      <div className="flex items-center justify-between gap-2"><dt className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="size-3" /> Distance</dt><dd className="font-semibold">{item.distance != null ? `${item.distance} km` : "Calculated on route"}</dd></div>
-      <div className="flex items-center justify-between gap-2"><dt className="flex items-center gap-1.5 text-muted-foreground"><Box className="size-3" /> Volume</dt><dd className="font-semibold">{item.quantity} {item.unit}</dd></div>
-      <div className="flex items-center justify-between gap-2"><dt className="flex items-center gap-1.5 text-muted-foreground"><Sparkles className="size-3" /> Spec</dt><dd className="truncate font-semibold">{item.condition}</dd></div>
-    </dl>
-    <div className="mt-auto pt-4">
-      {requestStatus === "pending" ? (
-        <div className="flex items-center justify-center gap-2 rounded-lg bg-warning/20 py-2.5 text-xs font-semibold text-foreground">
-          <Clock className="size-3.5" /> Pending approval
-        </div>
-      ) : readOnly ? (
-        <button onClick={onView} className="w-full rounded-lg bg-secondary py-2 text-xs font-semibold">Details</button>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={onView} className="rounded-lg bg-secondary py-2 text-xs font-semibold">Details</button>
-          <button onClick={onRequest} className="rounded-lg bg-primary py-2 text-xs font-semibold text-primary-foreground"><span className="inline-flex items-center gap-1">Reserve <Check className="size-3.5" /></span></button>
-        </div>
-      )}
-    </div>
-  </article>;
+  );
 }
 
-export function MiniStat({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-foreground/5 p-3"><p className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</p><p className="mt-1 font-display text-lg font-semibold">{value}</p></div>; }
+function ListingCard({ item, requestStatus, onView, onRequest, readOnly }: { item: Listing; requestStatus?: string | undefined; onView: () => void; onRequest: () => void | Promise<void>; readOnly?: boolean }) {
+  return (
+    <article className="flex min-h-[360px] sm:min-h-[390px] flex-col rounded-card border border-foreground/10 bg-card p-3 sm:p-3.5 transition-transform hover:-translate-y-1">
+      <div className="flex items-center justify-between gap-2 px-0.5 pb-2">
+        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase text-primary">
+          {item.material_type}
+        </span>
+        <span className="font-display text-lg sm:text-xl font-semibold text-primary truncate">
+          ₹{Number(item.current_price || item.list_price).toFixed(2)}
+          <span className="text-[10px] font-normal text-muted-foreground">/{item.unit}</span>
+        </span>
+      </div>
+      <div className="relative overflow-hidden rounded-lg">
+        <img
+          src={item.photo_url || "/images/cardboard-bales.jpg"}
+          alt={`${item.sub_grade} inventory`}
+          loading="lazy"
+          width={1024}
+          height={640}
+          className="aspect-[16/9] w-full object-cover"
+        />
+        <span className="absolute bottom-2 left-2 rounded bg-card/90 px-2 py-1 font-mono text-[10px] font-semibold shadow-sm">
+          Lot #{item.id.slice(0, 6)}
+        </span>
+      </div>
+      <button onClick={onView} className="mt-3 text-left">
+        <h3 className="font-display text-base font-semibold leading-tight">{item.sub_grade}</h3>
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.users?.name}</p>
+      </button>
+      <dl className="mt-3 space-y-1.5 text-[11px]">
+        <div className="flex items-center justify-between gap-2">
+          <dt className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="size-3 shrink-0" /> Distance</dt>
+          <dd className="font-semibold">{item.distance != null ? `${item.distance} km` : "Calculated on route"}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <dt className="flex items-center gap-1.5 text-muted-foreground"><Box className="size-3 shrink-0" /> Volume</dt>
+          <dd className="font-semibold">{item.quantity} {item.unit}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <dt className="flex items-center gap-1.5 text-muted-foreground"><Sparkles className="size-3 shrink-0" /> Spec</dt>
+          <dd className="truncate font-semibold">{item.condition}</dd>
+        </div>
+      </dl>
+      <div className="mt-auto pt-4">
+        {requestStatus === "pending" ? (
+          <div className="flex items-center justify-center gap-2 rounded-lg bg-warning/20 py-2.5 text-xs font-semibold text-foreground">
+            <Clock className="size-3.5" /> Pending approval
+          </div>
+        ) : readOnly ? (
+          <button onClick={onView} className="w-full rounded-lg bg-secondary py-2.5 text-xs font-semibold sm:py-2">
+            Details
+          </button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={onView} className="rounded-lg bg-secondary py-2.5 text-xs font-semibold sm:py-2">
+              Details
+            </button>
+            <button onClick={onRequest} className="rounded-lg bg-primary py-2.5 text-xs font-semibold text-primary-foreground sm:py-2">
+              <span className="inline-flex items-center gap-1">Reserve <Check className="size-3.5" /></span>
+            </button>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+export function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl sm:rounded-2xl bg-foreground/5 p-3">
+      <p className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 font-display text-base sm:text-lg font-semibold truncate">{value}</p>
+    </div>
+  );
+}
 
 function ListingDialog({ item, onClose, onRequest, requestStatus, readOnly }: { item: Listing; onClose: () => void; onRequest: () => void | Promise<void>; requestStatus?: string | undefined; readOnly?: boolean }) {
   const distVal = item.distance != null ? item.distance : 10.5;
-  return <div className="fixed inset-0 z-50 grid place-items-end bg-foreground/45 p-0 backdrop-blur-sm sm:place-items-center sm:p-4" onMouseDown={onClose}><div role="dialog" aria-modal="true" aria-label={`${item.sub_grade} details`} onMouseDown={(event) => event.stopPropagation()} className="max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 shadow-panel sm:max-w-2xl sm:rounded-panel"><div className="flex items-start justify-between"><div><span className="rounded-full bg-highlight/55 px-3 py-1 text-xs font-semibold uppercase">{item.material_type} · {item.sub_grade}</span><h2 className="mt-4 font-display text-3xl font-semibold">{item.sub_grade}</h2><p className="mt-1 text-sm text-muted-foreground">{item.users?.name} · {item.users?.address || "Bengaluru"}</p></div><button aria-label="Close" onClick={onClose} className="grid size-9 place-items-center rounded-full bg-foreground/5"><X className="size-4" /></button></div><div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4"><MiniStat label="Quantity" value={`${item.quantity} ${item.unit}`} /><MiniStat label="Distance" value={`${distVal} km`} /><MiniStat label="Contamination" value={`${item.contamination_pct ?? 0}%`} /><MiniStat label="Current price" value={`₹${Number(item.current_price || item.list_price).toFixed(2)}/${item.unit}`} /></div><div className="mt-6 rounded-2xl bg-secondary p-4"><div className="flex items-center justify-between"><p className="font-semibold">Live price decay</p><span className="text-sm text-muted-foreground">floor ₹{item.price_floor}</span></div><div className="mt-3 h-3 overflow-hidden rounded-full bg-foreground/10"><div className="h-full bg-accent" style={{ width: `${item.decay_pct ?? 45}%` }} /></div><div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>Listed at ₹{item.list_price}</span><span>{item.decay_pct >= 90 ? "Eligible for bulk pooling" : `${100 - (item.decay_pct || 45)}% remaining to floor`}</span></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-2xl border-2 border-foreground/10 p-4"><RouteIcon className="size-5 text-primary" /><p className="mt-3 text-xs uppercase text-muted-foreground">Estimated logistics</p><p className="font-display text-2xl font-semibold">₹{Math.max(1200, Math.round(distVal * 85 + (item.quantity / 1000) * 450))}</p><p className="text-xs text-muted-foreground">{distVal} km · calculated estimate</p></div><div className="rounded-2xl border-2 border-foreground/10 p-4"><Recycle className="size-5 text-primary" /><p className="mt-3 text-xs uppercase text-muted-foreground">Circular benefit</p><p className="font-display text-2xl font-semibold">{((item.quantity * 3.12) / 1000).toFixed(1)} t CO₂e</p><p className="text-xs text-muted-foreground">estimated avoided emissions</p></div></div>
-    {readOnly ? (
-      <div className="mt-6 rounded-full bg-secondary py-3 text-center font-display text-xs font-semibold text-muted-foreground">Marketplace Feed · Read-only for sellers</div>
-    ) : requestStatus === "pending" ? (
-      <div className="mt-6 flex items-center justify-center gap-2 rounded-full bg-warning/20 py-3 font-display text-sm font-semibold text-foreground"><Clock className="size-4" /> Pending approval</div>
-    ) : (
-      <button onClick={onRequest} className="mt-6 w-full rounded-full bg-accent py-3 font-display font-semibold text-accent-foreground shadow-button-accent">Send claim request</button>
-    )}
-  </div></div>;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-end bg-foreground/45 p-0 backdrop-blur-sm sm:place-items-center sm:p-4" onMouseDown={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${item.sub_grade} details`}
+        onMouseDown={(event) => event.stopPropagation()}
+        className="max-h-[90vh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-5 pb-8 shadow-panel sm:max-w-2xl sm:rounded-panel sm:p-6 sm:pb-6"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <span className="rounded-full bg-highlight/55 px-3 py-1 text-xs font-semibold uppercase">
+              {item.material_type} · {item.sub_grade}
+            </span>
+            <h2 className="mt-3 font-display text-2xl font-semibold sm:mt-4 sm:text-3xl">{item.sub_grade}</h2>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{item.users?.name} · {item.users?.address || "Bengaluru"}</p>
+          </div>
+          <button aria-label="Close" onClick={onClose} className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground/5">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+          <MiniStat label="Quantity" value={`${item.quantity} ${item.unit}`} />
+          <MiniStat label="Distance" value={`${distVal} km`} />
+          <MiniStat label="Contamination" value={`${item.contamination_pct ?? 0}%`} />
+          <MiniStat label="Current price" value={`₹${Number(item.current_price || item.list_price).toFixed(2)}/${item.unit}`} />
+        </div>
+
+        <div className="mt-5 rounded-xl sm:rounded-2xl bg-secondary p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm sm:text-base font-semibold">Live price decay</p>
+            <span className="text-xs sm:text-sm text-muted-foreground">floor ₹{item.price_floor}</span>
+          </div>
+          <div className="mt-3 h-2.5 sm:h-3 overflow-hidden rounded-full bg-foreground/10">
+            <div className="h-full bg-accent" style={{ width: `${item.decay_pct ?? 45}%` }} />
+          </div>
+          <div className="mt-2 flex justify-between text-[11px] sm:text-xs text-muted-foreground">
+            <span>Listed at ₹{item.list_price}</span>
+            <span>{item.decay_pct >= 90 ? "Eligible for bulk pooling" : `${100 - (item.decay_pct || 45)}% remaining to floor`}</span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl sm:rounded-2xl border-2 border-foreground/10 p-3.5 sm:p-4">
+            <RouteIcon className="size-5 text-primary" />
+            <p className="mt-2.5 text-[10px] sm:text-xs uppercase text-muted-foreground">Estimated logistics</p>
+            <p className="font-display text-xl sm:text-2xl font-semibold">₹{Math.max(1200, Math.round(distVal * 85 + (item.quantity / 1000) * 450))}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground">{distVal} km · calculated estimate</p>
+          </div>
+          <div className="rounded-xl sm:rounded-2xl border-2 border-foreground/10 p-3.5 sm:p-4">
+            <Recycle className="size-5 text-primary" />
+            <p className="mt-2.5 text-[10px] sm:text-xs uppercase text-muted-foreground">Circular benefit</p>
+            <p className="font-display text-xl sm:text-2xl font-semibold">{((item.quantity * 3.12) / 1000).toFixed(1)} t CO₂e</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground">estimated avoided emissions</p>
+          </div>
+        </div>
+
+        {readOnly ? (
+          <div className="mt-5 rounded-full bg-secondary py-3 text-center font-display text-xs font-semibold text-muted-foreground">
+            Marketplace Feed · Read-only for sellers
+          </div>
+        ) : requestStatus === "pending" ? (
+          <div className="mt-5 flex items-center justify-center gap-2 rounded-full bg-warning/20 py-3 font-display text-sm font-semibold text-foreground">
+            <Clock className="size-4" /> Pending approval
+          </div>
+        ) : (
+          <button
+            onClick={onRequest}
+            className="mt-5 w-full rounded-full bg-accent py-3.5 font-display font-semibold text-accent-foreground shadow-button-accent min-h-[46px]"
+          >
+            Send claim request
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
