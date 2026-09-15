@@ -5,7 +5,7 @@
 
 A B2B marketplace that connects waste generators, material buyers, and logistics companies to divert packaging waste (cardboard, plastics, pallets) from landfill — turning a disposal cost into a revenue stream and a supply source.
 
-🔗 **Live demo:** [segfaultshackout26-git-main-hetalpa21s-projects.vercel.app](https://segfaultshackout26-git-main-hetalpa21s-projects.vercel.app/)
+🔗 **Live demo:** [https://reroute-ochre.vercel.app/]
 
 ---
 
